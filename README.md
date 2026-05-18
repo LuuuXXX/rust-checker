@@ -14,6 +14,10 @@
 - 📊 **汇总总览**：自动生成 `summary.md`，状态一目了然
 - 🤖 **CI 友好**：`--ci` 模式输出机器可读 JSON，工具始终以零退出码退出
 - 🪵 **完整日志**：时间戳日志文件，记录工具链环境与执行细节
+- 📈 **历史趋势**：每次 `run` 持久化快照，`diff` 命令可视化趋势变化
+- 🔌 **插件系统**：从 [rust-checker-plugins](https://github.com/LuuuXXX/rust-checker-plugins) 注册表一键安装第三方工具
+- 🏗️ **Workspace 支持**：自动识别 Cargo workspace，支持按 crate 或变更集运行
+- 👀 **Watch 模式**：监听文件变更后自动重跑检查
 
 ---
 
@@ -49,6 +53,9 @@ rust-checker run
 
 # 4. 查看汇总报告
 cat .localcheck/reports/summary.md
+
+# 5. 对比上次与本次结果（Phase 3）
+rust-checker diff
 ```
 
 ---
@@ -90,7 +97,7 @@ rust-checker init --dir /path/to/project --preset quality
 
 ### `rust-checker run`
 
-读取配置并执行所有激活的工具，生成报告与日志。
+读取配置并执行所有激活的工具，生成报告与日志。每次运行结果自动保存到历史记录。
 
 ```
 rust-checker run [OPTIONS]
@@ -101,6 +108,8 @@ Options:
                              markdown | html | json
       --ci                 CI 模式：跳过交互提示，生成 ci_result.json
       --only <TOOLS>       只运行指定工具（逗号分隔）
+      --crate <CRATE>      只检查指定 crate（Workspace 模式）
+      --changed            只检查本次 git diff 涉及的 crate（Workspace 模式）
   -h, --help               显示帮助信息
 ```
 
@@ -118,22 +127,150 @@ rust-checker run --ci
 
 # 生成 HTML 格式报告
 rust-checker run --format html
+
+# Workspace：只检查指定 crate
+rust-checker run --crate my-lib
+
+# Workspace：只检查本次 git diff 涉及的 crate
+rust-checker run --changed
+```
+
+---
+
+### `rust-checker diff`
+
+对比两次运行结果，或展示历史趋势表格。
+
+```
+rust-checker diff [OPTIONS]
+
+Options:
+  -d, --dir <DIR>        项目目录（默认当前目录）
+      --last <N>         展示最近 N 次运行的趋势表格
+      --from <YYYYMMDD>  时间范围起始（与 --to 配合使用）
+      --to   <YYYYMMDD>  时间范围结束
+  -h, --help             显示帮助信息
+```
+
+**示例：**
+
+```bash
+# 对比最新两次运行
+rust-checker diff
+
+# 展示最近 5 次趋势
+rust-checker diff --last 5
+
+# 查看某个日期范围内的变化
+rust-checker diff --from 20260101 --to 20260131
+```
+
+---
+
+### `rust-checker plugin`
+
+管理来自 [rust-checker-plugins](https://github.com/LuuuXXX/rust-checker-plugins) 注册表的插件。
+
+```
+rust-checker plugin <SUBCOMMAND>
+
+Subcommands:
+  list              列出已安装的插件
+  add <NAME>        从注册表安装插件
+  remove <NAME>     卸载插件
+  update            更新所有已安装的插件
+```
+
+**示例：**
+
+```bash
+# 查看已安装插件
+rust-checker plugin list
+
+# 安装插件
+rust-checker plugin add cargo-expand
+
+# 卸载插件
+rust-checker plugin remove cargo-expand
+
+# 更新全部插件
+rust-checker plugin update
+```
+
+---
+
+### `rust-checker watch`
+
+监听文件变更，自动重跑检查。
+
+```
+rust-checker watch [OPTIONS]
+
+Options:
+  -d, --dir <DIR>        项目目录（默认当前目录）
+      --tools <TOOLS>    只重跑指定工具（逗号分隔，覆盖 config 设置）
+  -h, --help             显示帮助信息
+```
+
+**示例：**
+
+```bash
+# 监听变更，重跑所有工具
+rust-checker watch
+
+# 只重跑 clippy 和 fmt
+rust-checker watch --tools clippy,fmt
+```
+
+在 `config.toml` 中可以预设 watch 行为（见[配置文件格式](#配置文件格式)）。
+
+---
+
+### `rust-checker upgrade`
+
+将 `.localcheck/config.toml` 从旧 schema 迁移到最新版本，迁移前自动备份原文件。
+
+```
+rust-checker upgrade [OPTIONS]
+
+Options:
+  -d, --dir <DIR>   项目目录（默认当前目录）
+  -h, --help        显示帮助信息
+```
+
+**示例：**
+
+```bash
+# 将旧版配置（schema_version = "1"）迁移至最新版
+rust-checker upgrade
 ```
 
 ---
 
 ## 配置文件格式
 
-配置文件位于 `.localcheck/config.toml`。
+配置文件位于 `.localcheck/config.toml`，当前 schema 版本为 `"2"`。
 
 ```toml
-# 配置 schema 版本（可选，用于未来迁移）
-schema_version = "1"
+# 配置 schema 版本（当前为 "2"，run 自动生成；upgrade 命令可迁移旧版）
+schema_version = "2"
 
 # Rust 工具链配置（可选）
 [rust]
 version = "1.75.0"
 rustflags = ""
+
+# 历史记录配置（Phase 3 新增）
+# 每次 run 自动保存快照到 .localcheck/history/，超出 max_entries 后自动清理
+[history]
+max_entries = 10
+
+# Watch 模式配置（Phase 3 新增，可选）
+# rust-checker watch 使用此配置
+[watch]
+paths       = ["src"]     # 监听目录列表
+debounce_ms = 500         # 防抖延迟（毫秒）
+tools       = ["clippy", "fmt", "test"]  # 变更后只重跑这些工具
 
 # 内置工具配置
 [tools.build]
@@ -203,8 +340,12 @@ input_command = "bash scripts/check.sh"
 ├── config.toml
 ├── logs/
 │   └── 20260518-143200.log        # 执行日志（含工具链环境信息）
+├── history/                       # 历史快照（Phase 3）
+│   └── 20260518-143200/
+│       └── result.json            # 该次运行的工具结果
 └── reports/
     ├── summary.md                 # 汇总总览
+    ├── ci_result.json             # CI 模式下额外生成
     ├── quality/
     │   ├── build.md
     │   ├── test.md
@@ -307,7 +448,8 @@ jobs:
 
 - [`examples/minimal.toml`](examples/minimal.toml) — 4 个工具（build、test、clippy、fmt）
 - [`examples/standard.toml`](examples/standard.toml) — 6 个工具（代码质量全套）
-- [`examples/full.toml`](examples/full.toml) — 18 个工具（完整检查）
+- [`examples/full.toml`](examples/full.toml) — 18 个工具（完整检查，含 watch 配置）
+- [`examples/workspace.toml`](examples/workspace.toml) — Workspace / Monorepo 配置示例
 
 使用示例配置：
 
@@ -326,7 +468,7 @@ rust-checker run
 |------|------|------|
 | Phase 1 | ✅ 完成 | CLI 骨架、配置解析、串行执行引擎、基础报告 |
 | Phase 2 | ✅ 完成 | 全部内置工具、汇总报告、CI 友好输出 |
-| Phase 3 | 🔜 规划中 | 历史趋势追踪、Workspace 支持、插件生态 |
+| Phase 3 | ✅ 完成 | 历史趋势追踪、Workspace 支持、插件生态、Watch 模式、配置升级 |
 
 ---
 

@@ -52,7 +52,7 @@ enum Commands {
         only: Option<Vec<String>>,
 
         /// 只检查指定 crate（Workspace 模式）
-        #[arg(long)]
+        #[arg(long = "crate")]
         crate_name: Option<String>,
 
         /// 只检查本次 git diff 涉及的 crate（Workspace 模式）
