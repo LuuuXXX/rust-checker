@@ -44,14 +44,14 @@ mod tests {
 
     #[test]
     fn test_metrics_ok() {
-        let r = parse("src/main.rs: 100 lines\nsrc/lib.rs: 200 lines", "", 0, "cargo geiger");
+        let r = parse("src/main.rs: 100 lines\nsrc/lib.rs: 200 lines", "", 0, "cargo geiger --output-format Ratio");
         assert_eq!(r.status, ToolStatus::Ok);
         assert!(r.summary.contains("文件"));
     }
 
     #[test]
     fn test_metrics_fail() {
-        let r = parse("", "error", 1, "cargo geiger");
+        let r = parse("", "error", 1, "cargo geiger --output-format Ratio");
         assert_eq!(r.status, ToolStatus::Error);
     }
 }

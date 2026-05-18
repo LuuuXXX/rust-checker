@@ -56,7 +56,7 @@ pub fn get_tool_dep(tool_name: &str) -> Option<ToolDep> {
         }),
         "flamegraph" => Some(ToolDep {
             binary: "cargo-flamegraph",
-            cargo_install: Some("flamegraph"),
+            cargo_install: Some("cargo-flamegraph"),
         }),
         _ => None,
     }
