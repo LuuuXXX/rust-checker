@@ -52,7 +52,7 @@ enum Commands {
         only: Option<Vec<String>>,
 
         /// 只检查指定 crate（Workspace 模式）
-        #[arg(long = "crate")]
+        #[arg(long = "crate", value_name = "CRATE")]
         crate_name: Option<String>,
 
         /// 只检查本次 git diff 涉及的 crate（Workspace 模式）
@@ -67,15 +67,15 @@ enum Commands {
         dir: PathBuf,
 
         /// 展示最近 N 次趋势
-        #[arg(long)]
+        #[arg(long, value_name = "N")]
         last: Option<usize>,
 
         /// 时间范围起始（YYYYMMDD 格式）
-        #[arg(long)]
+        #[arg(long, value_name = "YYYYMMDD")]
         from: Option<String>,
 
         /// 时间范围结束（YYYYMMDD 格式）
-        #[arg(long)]
+        #[arg(long, value_name = "YYYYMMDD")]
         to: Option<String>,
     },
 
