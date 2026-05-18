@@ -1,6 +1,5 @@
 # rust-checker 开发计划
 
-> 基于 v1 / v2 / v3 规划文档综合整理  
 > 状态：进行中
 
 ---
@@ -17,7 +16,7 @@
 
 ---
 
-## 二、Phase 1 — 核心框架（对应 v1）
+## 二、Phase 1 — 核心框架
 
 ### 目标
 建立可运行的 CLI 骨架，支持配置驱动的工具调度，输出基础报告与日志。
@@ -82,14 +81,14 @@
 
 ---
 
-## 三、Phase 2 — 生产可用（对应 v2）
+## 三、Phase 2 — 生产可用
 
 ### 目标
 补全所有内置工具，完善报告体系，支持 CI 集成，提升上手体验。
 
 ---
 
-### 3.1 补全 v1 遗留报告模板
+### 3.1 补全 Phase 1 遗留报告模板
 
 - [ ] **依赖分析**（`cargo tree` + `cargo machete`）：依赖统计概览、依赖树节选、重复依赖列表、未使用依赖
 - [ ] **依赖安全检查**（`cargo audit`）：安全概览（严重 / 高危 / 中危 / 低危）、漏洞详情、受影响依赖路径
@@ -163,7 +162,7 @@
 ```
 
 - [ ] 重组报告子目录（quality / security / deps / perf / compat）
-- [ ] 提供 v1 扁平路径 → v2 子目录路径的向后兼容适配层
+- [ ] 提供旧版扁平路径 → 子目录路径的向后兼容适配层
 
 ### 3.5 聚合汇总报告（`summary.md`）
 
@@ -180,7 +179,7 @@
 
 ---
 
-## 四、Phase 3 — 平台化（对应 v3）
+## 四、Phase 3 — 平台化
 
 ### 目标
 引入插件生态、历史趋势追踪和 Workspace 支持，使工具演进为持续质量治理平台。
@@ -209,7 +208,7 @@
 
 - [ ] `config.toml` 新增 `schema_version` 字段
 - [ ] 实现 `rust-checker upgrade` 命令：自动迁移旧版配置到新 schema，迁移前备份原文件
-- [ ] 无 `schema_version` 字段时视为 v1，自动兼容
+- [ ] 无 `schema_version` 字段时视为旧版配置，自动兼容
 
 ### 4.4 插件机制（P2）
 
@@ -281,7 +280,7 @@
 | P0 | Phase 1 | 基础报告：build / test / coverage / metrics |
 | P0 | Phase 1 | 运行依赖预检（分级提示 + 可选自动安装） |
 | P0 | Phase 1 | 日志系统（结构化写入 + 时间戳文件名） |
-| P0 | Phase 2 | 补全 v1 遗留报告：deps / audit / flamegraph / binary |
+| P0 | Phase 2 | 补全 Phase 1 遗留报告：deps / audit / flamegraph / binary |
 | P0 | Phase 2 | CI 友好输出（`--ci` 参数 + 状态字段） |
 | P1 | Phase 2 | Clippy / fmt / doc 内置工具 |
 | P1 | Phase 2 | cargo deny（许可证合规 + 依赖策略） |
@@ -303,4 +302,4 @@
 
 ---
 
-*本文档综合 v1 / v2 / v3 规划整理，阶段完成后请在对应 checklist 打勾，并同步更新各版本规划文档。*
+*各阶段完成后请在对应 checklist 打勾。*
