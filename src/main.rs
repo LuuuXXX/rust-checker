@@ -1,14 +1,8 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-mod cli;
-mod config;
-mod logger;
-mod report;
-mod runner;
-mod tools;
-
-use crate::report::ReportFormat;
+use rust_checker::cli;
+use rust_checker::report::ReportFormat;
 
 #[derive(Parser)]
 #[command(
@@ -66,7 +60,12 @@ fn main() -> anyhow::Result<()> {
         Commands::Init { dir, preset, force } => {
             cli::init::run_init(&dir, &preset, force)?;
         }
-        Commands::Run { dir, format, ci, only } => {
+        Commands::Run {
+            dir,
+            format,
+            ci,
+            only,
+        } => {
             let report_format = match format.as_str() {
                 "html" => ReportFormat::Html,
                 "json" => ReportFormat::Json,

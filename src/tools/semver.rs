@@ -4,9 +4,9 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let combined = format!("{}\n{}", stdout, stderr);
 
     // Look for FAILED or passed in output
-    let has_failed = combined
-        .lines()
-        .any(|l| l.contains("FAILED") || (l.contains("semver violations") && !l.contains("no semver")));
+    let has_failed = combined.lines().any(|l| {
+        l.contains("FAILED") || (l.contains("semver violations") && !l.contains("no semver"))
+    });
     let has_passed = combined
         .lines()
         .any(|l| l.contains("passed") || l.contains("no semver"));

@@ -1,6 +1,6 @@
+use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use anyhow::{Context, Result};
 use std::path::Path;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -91,6 +91,34 @@ mod tests {
     }
 
     #[test]
+    fn test_builtin_output_paths_all_known_tools() {
+        let known = [
+            ("coverage", "quality/coverage.md"),
+            ("metrics", "perf/metrics.md"),
+            ("clippy", "quality/clippy.md"),
+            ("fmt", "quality/fmt.md"),
+            ("doc", "quality/doc.md"),
+            ("deny", "security/deny.md"),
+            ("geiger", "security/geiger.md"),
+            ("deps", "deps/deps.md"),
+            ("msrv", "compat/msrv.md"),
+            ("semver", "compat/semver.md"),
+            ("udeps", "deps/udeps.md"),
+            ("bench", "perf/bench.md"),
+            ("bloat", "perf/bloat.md"),
+            ("flamegraph", "perf/flamegraph.md"),
+            ("binary", "compat/binary.md"),
+        ];
+        for (name, expected) in &known {
+            assert_eq!(
+                builtin_output_path(name),
+                Some(*expected),
+                "failed for {name}"
+            );
+        }
+    }
+
+    #[test]
     fn test_effective_output_path_custom() {
         assert_eq!(effective_output_path("mytool", None), "customs/mytool.md");
     }
@@ -101,6 +129,13 @@ mod tests {
             effective_output_path("build", Some("custom/path.md")),
             "custom/path.md"
         );
+    }
+
+    #[test]
+    fn test_effective_output_path_builtin_fallback() {
+        // Built-in tool without explicit config gets default path
+        assert_eq!(effective_output_path("clippy", None), "quality/clippy.md");
+        assert_eq!(effective_output_path("audit", None), "security/audit.md");
     }
 
     #[test]
@@ -132,5 +167,120 @@ depends_on = ["build"]
             config.tools["test"].depends_on.as_deref(),
             Some(["build".to_string()].as_slice())
         );
+    }
+
+    #[test]
+    fn test_config_inactive_tool() {
+        let toml_str = r#"
+[tools.build]
+desc = "构建项目"
+active = false
+input_command = "cargo build"
+"#;
+        let config: Config = toml::from_str(toml_str).unwrap();
+        assert!(!config.tools["build"].active);
+    }
+
+    #[test]
+    fn test_config_resolve_output_paths_fills_builtins() {
+        let toml_str = r#"
+[tools.build]
+desc = "构建"
+active = true
+input_command = "cargo build"
+
+[tools.clippy]
+desc = "clippy"
+active = true
+input_command = "cargo clippy"
+"#;
+        let mut config: Config = toml::from_str(toml_str).unwrap();
+        assert!(config.tools["build"].output_path.is_none());
+        assert!(config.tools["clippy"].output_path.is_none());
+
+        config.resolve_output_paths();
+
+        assert_eq!(
+            config.tools["build"].output_path.as_deref(),
+            Some("quality/build.md")
+        );
+        assert_eq!(
+            config.tools["clippy"].output_path.as_deref(),
+            Some("quality/clippy.md")
+        );
+    }
+
+    #[test]
+    fn test_config_resolve_output_paths_preserves_existing() {
+        let toml_str = r#"
+[tools.build]
+desc = "构建"
+active = true
+input_command = "cargo build"
+output_path = "my/custom/build.md"
+"#;
+        let mut config: Config = toml::from_str(toml_str).unwrap();
+        config.resolve_output_paths();
+        assert_eq!(
+            config.tools["build"].output_path.as_deref(),
+            Some("my/custom/build.md")
+        );
+    }
+
+    #[test]
+    fn test_config_resolve_output_paths_custom_tool() {
+        let toml_str = r#"
+[tools.my_custom_tool]
+desc = "custom"
+active = true
+input_command = "echo hello"
+"#;
+        let mut config: Config = toml::from_str(toml_str).unwrap();
+        config.resolve_output_paths();
+        assert_eq!(
+            config.tools["my_custom_tool"].output_path.as_deref(),
+            Some("customs/my_custom_tool.md")
+        );
+    }
+
+    #[test]
+    fn test_config_load_from_file() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut f = std::fs::File::create(&path).unwrap();
+        write!(
+            f,
+            r#"
+schema_version = "1"
+[tools.build]
+desc = "build"
+active = true
+input_command = "cargo build"
+"#
+        )
+        .unwrap();
+
+        let config = Config::load(&path).unwrap();
+        assert_eq!(config.schema_version.as_deref(), Some("1"));
+        assert!(config.tools.contains_key("build"));
+    }
+
+    #[test]
+    fn test_config_load_missing_file_errors() {
+        let result = Config::load(std::path::Path::new("/nonexistent/path/config.toml"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_config_load_invalid_toml_errors() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut f = std::fs::File::create(&path).unwrap();
+        write!(f, "this is not valid toml {{{{").unwrap();
+
+        let result = Config::load(&path);
+        assert!(result.is_err());
     }
 }

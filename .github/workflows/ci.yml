@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Check formatting and linting on a single fast runner first
+  # ──────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint (fmt + clippy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Build and test across three platforms
+  # ──────────────────────────────────────────────────────────────────────────
+  test:
+    name: Test (${{ matrix.os }})
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: cargo build
+        run: cargo build --verbose
+
+      - name: cargo test (unit + integration)
+        run: cargo test --verbose
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # End-to-end: run rust-checker against itself
+  # ──────────────────────────────────────────────────────────────────────────
+  e2e:
+    name: E2E self-check
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-e2e-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build rust-checker binary
+        run: cargo build
+
+      - name: rust-checker init --preset quality
+        run: ./target/debug/rust-checker init --preset quality
+
+      - name: rust-checker run (fmt + clippy only) in CI mode
+        run: >
+          ./target/debug/rust-checker run
+          --only fmt,clippy
+          --ci
+
+      - name: Verify ci_result.json was created
+        run: |
+          test -f .localcheck/reports/ci_result.json
+          echo "=== ci_result.json ==="
+          cat .localcheck/reports/ci_result.json
+
+      - name: Verify summary.md was created
+        run: |
+          test -f .localcheck/reports/summary.md
+          echo "=== summary.md ==="
+          cat .localcheck/reports/summary.md
+
+      - name: Upload reports as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rust-checker-reports
+          path: .localcheck/reports/
+          retention-days: 7

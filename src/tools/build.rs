@@ -12,10 +12,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         .lines()
         .filter(|l| l.contains("error[") || l.starts_with("error:"))
         .count();
-    let warning_count = combined
-        .lines()
-        .filter(|l| l.contains("warning:"))
-        .count();
+    let warning_count = combined.lines().filter(|l| l.contains("warning:")).count();
 
     let summary = if exit_code == 0 {
         if warning_count > 0 {
@@ -57,14 +54,24 @@ mod tests {
 
     #[test]
     fn test_build_failure() {
-        let r = parse("", "error[E0308]: mismatched types\nerror: aborting due to 1 error", 1, "cargo build");
+        let r = parse(
+            "",
+            "error[E0308]: mismatched types\nerror: aborting due to 1 error",
+            1,
+            "cargo build",
+        );
         assert_eq!(r.status, ToolStatus::Error);
         assert!(r.summary.contains("失败"));
     }
 
     #[test]
     fn test_build_with_warnings() {
-        let r = parse("", "warning: unused variable `x`\nFinished dev", 0, "cargo build");
+        let r = parse(
+            "",
+            "warning: unused variable `x`\nFinished dev",
+            0,
+            "cargo build",
+        );
         assert_eq!(r.status, ToolStatus::Ok);
         assert!(r.summary.contains("警告"));
     }

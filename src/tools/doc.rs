@@ -3,10 +3,7 @@ use crate::report::{ToolReport, ToolStatus};
 pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolReport {
     let combined = format!("{}\n{}", stdout, stderr);
 
-    let warning_count = combined
-        .lines()
-        .filter(|l| l.contains("warning:"))
-        .count();
+    let warning_count = combined.lines().filter(|l| l.contains("warning:")).count();
 
     let status = if exit_code != 0 {
         ToolStatus::Error
@@ -53,7 +50,12 @@ mod tests {
 
     #[test]
     fn test_doc_warning() {
-        let r = parse("", "warning: missing documentation for struct `Foo`", 0, "cargo doc");
+        let r = parse(
+            "",
+            "warning: missing documentation for struct `Foo`",
+            0,
+            "cargo doc",
+        );
         assert_eq!(r.status, ToolStatus::Warn);
         assert!(r.summary.contains("警告"));
     }

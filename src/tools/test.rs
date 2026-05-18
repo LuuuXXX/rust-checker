@@ -69,7 +69,8 @@ mod tests {
 
     #[test]
     fn test_parse_success() {
-        let stdout = "running 3 tests\ntest foo ... ok\ntest result: ok. 3 passed; 0 failed; 0 ignored";
+        let stdout =
+            "running 3 tests\ntest foo ... ok\ntest result: ok. 3 passed; 0 failed; 0 ignored";
         let r = parse(stdout, "", 0, "cargo test");
         assert_eq!(r.status, ToolStatus::Ok);
         assert!(r.summary.contains("3"));

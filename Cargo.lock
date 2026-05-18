@@ -505,6 +505,7 @@ dependencies = [
  "indicatif",
  "serde",
  "serde_json",
+ "tempfile",
  "toml",
  "which",
 ]

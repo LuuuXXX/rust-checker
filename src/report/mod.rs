@@ -74,7 +74,10 @@ pub fn write_summary(report_dir: &Path, reports: &[ToolReport]) -> Result<()> {
     }
     writeln!(content)?;
 
-    let ok = reports.iter().filter(|r| r.status == ToolStatus::Ok).count();
+    let ok = reports
+        .iter()
+        .filter(|r| r.status == ToolStatus::Ok)
+        .count();
     let warn = reports
         .iter()
         .filter(|r| r.status == ToolStatus::Warn)
@@ -96,4 +99,82 @@ pub fn write_summary(report_dir: &Path, reports: &[ToolReport]) -> Result<()> {
 
     std::fs::write(report_dir.join("summary.md"), content)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_report(name: &str, status: ToolStatus, summary: &str) -> ToolReport {
+        ToolReport {
+            tool_name: name.to_string(),
+            status,
+            summary: summary.to_string(),
+            output_path: format!("quality/{name}.md"),
+            markdown_content: format!("# {name}\n\n{summary}\n"),
+        }
+    }
+
+    #[test]
+    fn test_tool_status_emoji() {
+        assert_eq!(ToolStatus::Ok.emoji(), "✅");
+        assert_eq!(ToolStatus::Warn.emoji(), "⚠️");
+        assert_eq!(ToolStatus::Error.emoji(), "❌");
+        assert_eq!(ToolStatus::Skipped.emoji(), "⏭️");
+    }
+
+    #[test]
+    fn test_tool_status_label() {
+        assert_eq!(ToolStatus::Ok.label(), "通过");
+        assert_eq!(ToolStatus::Warn.label(), "警告");
+        assert_eq!(ToolStatus::Error.label(), "失败");
+        assert_eq!(ToolStatus::Skipped.label(), "跳过");
+    }
+
+    #[test]
+    fn test_write_summary_creates_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let reports = vec![
+            make_report("build", ToolStatus::Ok, "构建成功"),
+            make_report("test", ToolStatus::Error, "2个失败"),
+            make_report("clippy", ToolStatus::Warn, "3个警告"),
+            make_report("fmt", ToolStatus::Skipped, "已跳过"),
+        ];
+        write_summary(dir.path(), &reports).unwrap();
+
+        let summary_path = dir.path().join("summary.md");
+        assert!(summary_path.exists());
+
+        let content = std::fs::read_to_string(summary_path).unwrap();
+        assert!(content.contains("build"));
+        assert!(content.contains("✅"));
+        assert!(content.contains("❌"));
+        assert!(content.contains("⚠️"));
+        assert!(content.contains("⏭️"));
+    }
+
+    #[test]
+    fn test_write_summary_counts() {
+        let dir = tempfile::tempdir().unwrap();
+        let reports = vec![
+            make_report("a", ToolStatus::Ok, "ok"),
+            make_report("b", ToolStatus::Ok, "ok"),
+            make_report("c", ToolStatus::Error, "err"),
+            make_report("d", ToolStatus::Warn, "warn"),
+            make_report("e", ToolStatus::Skipped, "skip"),
+        ];
+        write_summary(dir.path(), &reports).unwrap();
+        let content = std::fs::read_to_string(dir.path().join("summary.md")).unwrap();
+        assert!(content.contains("通过: 2"));
+        assert!(content.contains("警告: 1"));
+        assert!(content.contains("失败: 1"));
+        assert!(content.contains("跳过: 1"));
+    }
+
+    #[test]
+    fn test_write_summary_empty_reports() {
+        let dir = tempfile::tempdir().unwrap();
+        write_summary(dir.path(), &[]).unwrap();
+        assert!(dir.path().join("summary.md").exists());
+    }
 }

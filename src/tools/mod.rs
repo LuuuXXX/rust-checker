@@ -57,8 +57,8 @@ fn generic_parse(
     exit_code: i32,
     command: &str,
 ) -> ToolReport {
-    use crate::report::{ToolStatus};
     use crate::config::effective_output_path;
+    use crate::report::ToolStatus;
 
     let combined = format!("{}\n{}", stdout, stderr);
     let status = if exit_code == 0 {

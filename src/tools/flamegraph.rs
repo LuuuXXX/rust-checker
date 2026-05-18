@@ -4,7 +4,9 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let combined = format!("{}\n{}", stdout, stderr);
 
     // Check for SVG file generation
-    let svg_generated = combined.lines().any(|l| l.contains(".svg") || l.contains("flamegraph"));
+    let svg_generated = combined
+        .lines()
+        .any(|l| l.contains(".svg") || l.contains("flamegraph"));
 
     let status = if exit_code != 0 {
         ToolStatus::Error
@@ -21,15 +23,12 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     };
 
     // Extract SVG path if present
-    let svg_path = combined
-        .lines()
-        .find(|l| l.contains(".svg"))
-        .map(|l| {
-            l.split_whitespace()
-                .find(|p| p.ends_with(".svg"))
-                .unwrap_or(l)
-                .to_string()
-        });
+    let svg_path = combined.lines().find(|l| l.contains(".svg")).map(|l| {
+        l.split_whitespace()
+            .find(|p| p.ends_with(".svg"))
+            .unwrap_or(l)
+            .to_string()
+    });
 
     let svg_section = if let Some(path) = svg_path {
         format!("\n## 火焰图\n\n查看生成的 SVG 文件: `{}`\n", path)

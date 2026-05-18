@@ -9,10 +9,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         .filter(|l| l.contains("error[") || (l.starts_with("error") && !l.contains("warning")))
         .count();
 
-    let warning_count = combined
-        .lines()
-        .filter(|l| l.contains("warning["))
-        .count();
+    let warning_count = combined.lines().filter(|l| l.contains("warning[")).count();
 
     let status = if error_count > 0 || exit_code != 0 {
         ToolStatus::Error
@@ -59,7 +56,12 @@ mod tests {
 
     #[test]
     fn test_deny_ok() {
-        let r = parse("advisories ok\nlicenses ok\nsources ok", "", 0, "cargo deny check");
+        let r = parse(
+            "advisories ok\nlicenses ok\nsources ok",
+            "",
+            0,
+            "cargo deny check",
+        );
         assert_eq!(r.status, ToolStatus::Ok);
     }
 

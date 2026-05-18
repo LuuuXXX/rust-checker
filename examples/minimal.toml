@@ -1,0 +1,32 @@
+# rust-checker 最小配置示例 (minimal preset)
+#
+# 仅启用 build、test、clippy、fmt 四个工具。
+# 适合：快速本地检查，新项目初始化。
+#
+# 生成命令：rust-checker init --preset minimal
+
+schema_version = "1"
+
+[rust]
+rustflags = ""
+
+[tools.build]
+desc = "构建项目，分析产物与编译选项"
+active = true
+input_command = "cargo build"
+
+[tools.test]
+desc = "运行单元测试与集成测试"
+active = true
+input_command = "cargo test"
+depends_on = ["build"]
+
+[tools.clippy]
+desc = "代码静态分析（lint 检查）"
+active = true
+input_command = "cargo clippy -- -D warnings"
+
+[tools.fmt]
+desc = "代码格式检查"
+active = true
+input_command = "cargo fmt --check"

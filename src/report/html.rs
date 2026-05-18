@@ -20,6 +20,8 @@ pub fn write_tool_report_html(report_dir: &Path, report: &ToolReport) -> Result<
 fn markdown_to_html(md: &str) -> String {
     format!(
         "<pre>{}</pre>",
-        md.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+        md.replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
     )
 }

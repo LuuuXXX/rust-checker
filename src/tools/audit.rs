@@ -88,7 +88,12 @@ mod tests {
 
     #[test]
     fn test_audit_vuln() {
-        let r = parse("", "error[RUSTSEC-2022-0001]: vuln\n1 vulnerabilities found", 1, "cargo audit");
+        let r = parse(
+            "",
+            "error[RUSTSEC-2022-0001]: vuln\n1 vulnerabilities found",
+            1,
+            "cargo audit",
+        );
         assert_eq!(r.status, ToolStatus::Error);
     }
 

@@ -10,7 +10,9 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
 
     for line in combined.lines() {
         let lower = line.to_lowercase();
-        if lower.contains("file") && (lower.contains("kb") || lower.contains("mb") || lower.contains("bytes")) {
+        if lower.contains("file")
+            && (lower.contains("kb") || lower.contains("mb") || lower.contains("bytes"))
+        {
             // Extract size info
             for part in line.split_whitespace() {
                 if part.ends_with("KB") || part.ends_with("MB") || part.ends_with('B') {

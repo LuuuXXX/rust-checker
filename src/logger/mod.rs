@@ -1,8 +1,8 @@
 use anyhow::Result;
+use chrono::Local;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use chrono::Local;
 
 pub struct Logger {
     file: File,

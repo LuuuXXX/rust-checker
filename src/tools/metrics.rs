@@ -4,10 +4,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let combined = format!("{}\n{}", stdout, stderr);
 
     let line_count = combined.lines().count();
-    let file_count = combined
-        .lines()
-        .filter(|l| l.contains(".rs"))
-        .count();
+    let file_count = combined.lines().filter(|l| l.contains(".rs")).count();
 
     let status = if exit_code != 0 {
         ToolStatus::Error
@@ -44,7 +41,12 @@ mod tests {
 
     #[test]
     fn test_metrics_ok() {
-        let r = parse("src/main.rs: 100 lines\nsrc/lib.rs: 200 lines", "", 0, "cargo geiger --output-format Ratio");
+        let r = parse(
+            "src/main.rs: 100 lines\nsrc/lib.rs: 200 lines",
+            "",
+            0,
+            "cargo geiger --output-format Ratio",
+        );
         assert_eq!(r.status, ToolStatus::Ok);
         assert!(r.summary.contains("文件"));
     }

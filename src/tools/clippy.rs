@@ -3,10 +3,7 @@ use crate::report::{ToolReport, ToolStatus};
 pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolReport {
     let combined = format!("{}\n{}", stdout, stderr);
 
-    let warning_count = combined
-        .lines()
-        .filter(|l| l.contains("warning:"))
-        .count();
+    let warning_count = combined.lines().filter(|l| l.contains("warning:")).count();
     let error_count = combined
         .lines()
         .filter(|l| l.contains("error:") && !l.contains("aborting due to"))

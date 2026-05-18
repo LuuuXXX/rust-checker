@@ -10,10 +10,17 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         if lower.contains("msrv") || lower.contains("minimum supported rust version") {
             // Try to extract version number (e.g. 1.65.0)
             for part in line.split_whitespace() {
-                if part.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false)
+                if part
+                    .chars()
+                    .next()
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false)
                     && part.contains('.')
                 {
-                    msrv_version = Some(part.trim_matches(|c: char| !c.is_alphanumeric() && c != '.').to_string());
+                    msrv_version = Some(
+                        part.trim_matches(|c: char| !c.is_alphanumeric() && c != '.')
+                            .to_string(),
+                    );
                     break;
                 }
             }

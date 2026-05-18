@@ -8,7 +8,9 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let binary_lines: Vec<&str> = combined
         .lines()
         .filter(|l| {
-            l.contains("Compiling") || l.contains("Finished") || l.contains("target/")
+            l.contains("Compiling")
+                || l.contains("Finished")
+                || l.contains("target/")
                 || l.contains(".exe")
         })
         .collect();

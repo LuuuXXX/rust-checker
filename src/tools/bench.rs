@@ -28,7 +28,10 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let bench_section = if bench_results.is_empty() {
         String::new()
     } else {
-        format!("\n## 基准测试结果\n\n```\n{}\n```\n", bench_results.join("\n"))
+        format!(
+            "\n## 基准测试结果\n\n```\n{}\n```\n",
+            bench_results.join("\n")
+        )
     };
 
     let markdown_content = format!(

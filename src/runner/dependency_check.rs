@@ -1,7 +1,7 @@
 use anyhow::Result;
+use dialoguer::Confirm;
 use std::io::IsTerminal;
 use which::which;
-use dialoguer::Confirm;
 
 pub struct ToolDep {
     pub binary: &'static str,
@@ -90,28 +90,89 @@ pub fn prompt_and_install(tool_name: &str, dep: &ToolDep) -> Result<bool> {
         tool_name, dep.binary, install_hint
     );
 
-    let confirm = Confirm::new()
-        .with_prompt(&prompt)
-        .default(true)
-        .interact();
+    let confirm = Confirm::new().with_prompt(&prompt).default(true).interact();
 
     match confirm {
         Ok(true) => {
             println!("Installing {}...", tool_name);
-            let status =
-                if dep.cargo_install.map(|c| c.starts_with("rustup")).unwrap_or(false) {
-                    let parts: Vec<&str> = dep.cargo_install.unwrap().split_whitespace().collect();
-                    std::process::Command::new(parts[0])
-                        .args(&parts[1..])
-                        .status()?
-                } else {
-                    let pkg = dep.cargo_install.unwrap();
-                    std::process::Command::new("cargo")
-                        .args(["install", pkg])
-                        .status()?
-                };
+            let status = if dep
+                .cargo_install
+                .map(|c| c.starts_with("rustup"))
+                .unwrap_or(false)
+            {
+                let parts: Vec<&str> = dep.cargo_install.unwrap().split_whitespace().collect();
+                std::process::Command::new(parts[0])
+                    .args(&parts[1..])
+                    .status()?
+            } else {
+                let pkg = dep.cargo_install.unwrap();
+                std::process::Command::new("cargo")
+                    .args(["install", pkg])
+                    .status()?
+            };
             Ok(status.success())
         }
         _ => Ok(false),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_tool_dep_known_tools() {
+        // Tools that always use cargo (no special binary needed)
+        for tool in &["build", "test", "bench", "doc", "deps", "binary"] {
+            let dep = get_tool_dep(tool)
+                .unwrap_or_else(|| panic!("expected dep for {tool}"));
+            assert_eq!(dep.binary, "cargo");
+            assert!(dep.cargo_install.is_none());
+        }
+    }
+
+    #[test]
+    fn test_get_tool_dep_cargo_subcommands() {
+        let cases = [
+            ("coverage", "cargo-llvm-cov"),
+            ("clippy", "cargo-clippy"),
+            ("fmt", "cargo-fmt"),
+            ("audit", "cargo-audit"),
+            ("deny", "cargo-deny"),
+            ("geiger", "cargo-geiger"),
+            ("metrics", "cargo-geiger"),
+            ("msrv", "cargo-msrv"),
+            ("semver", "cargo-semver-checks"),
+            ("udeps", "cargo-udeps"),
+            ("bloat", "cargo-bloat"),
+            ("flamegraph", "cargo-flamegraph"),
+        ];
+        for (tool, expected_binary) in &cases {
+            let dep = get_tool_dep(tool)
+                .unwrap_or_else(|| panic!("expected dep for {tool}"));
+            assert_eq!(dep.binary, *expected_binary, "wrong binary for {tool}");
+            assert!(
+                dep.cargo_install.is_some(),
+                "expected install hint for {tool}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_tool_dep_unknown_tool_returns_none() {
+        assert!(get_tool_dep("nonexistent_tool_xyz").is_none());
+    }
+
+    #[test]
+    fn test_check_tool_available_cargo_always_true() {
+        // cargo should always be available in a CI/dev environment
+        assert!(check_tool_available("build"));
+        assert!(check_tool_available("test"));
+    }
+
+    #[test]
+    fn test_check_tool_available_unknown_tool_returns_true() {
+        // Unknown tools (no dep info) are assumed available
+        assert!(check_tool_available("some_unknown_tool_xyz"));
     }
 }

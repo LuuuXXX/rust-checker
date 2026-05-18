@@ -157,19 +157,14 @@ impl Runner {
         write_summary(&self.report_dir, &reports)?;
 
         if self.ci_mode {
-            let timestamp = chrono::Local::now()
-                .format("%Y-%m-%dT%H:%M:%S")
-                .to_string();
+            let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string();
             let json = crate::report::json::build_ci_json(&reports, &timestamp);
             let json_path = self.report_dir.join("ci_result.json");
             std::fs::write(&json_path, serde_json::to_string_pretty(&json)?)?;
             println!("CI JSON: {}", json_path.display());
         }
 
-        println!(
-            "\n✅ 检查完成，报告已生成: {}",
-            self.report_dir.display()
-        );
+        println!("\n✅ 检查完成，报告已生成: {}", self.report_dir.display());
         Ok(())
     }
 }
@@ -234,6 +229,7 @@ fn dfs(
 mod tests {
     use super::*;
     use crate::config::ToolConfig;
+    use crate::report::ToolStatus;
 
     fn make_tool(active: bool, deps: Option<Vec<&str>>) -> ToolConfig {
         ToolConfig {
@@ -242,6 +238,16 @@ mod tests {
             input_command: "cargo test".to_string(),
             output_path: None,
             depends_on: deps.map(|d| d.iter().map(|s| s.to_string()).collect()),
+        }
+    }
+
+    fn make_tool_with_output(active: bool, output_path: Option<&str>) -> ToolConfig {
+        ToolConfig {
+            desc: "test".to_string(),
+            active,
+            input_command: "cargo test".to_string(),
+            output_path: output_path.map(|s| s.to_string()),
+            depends_on: None,
         }
     }
 
@@ -266,10 +272,69 @@ mod tests {
     }
 
     #[test]
+    fn test_topo_sort_chain() {
+        // a → b → c (c must run first, then b, then a)
+        let mut tools = IndexMap::new();
+        tools.insert("a".to_string(), make_tool(true, Some(vec!["b"])));
+        tools.insert("b".to_string(), make_tool(true, Some(vec!["c"])));
+        tools.insert("c".to_string(), make_tool(true, None));
+        let order = topo_sort(&tools).unwrap();
+        let pos_c = order.iter().position(|x| x == "c").unwrap();
+        let pos_b = order.iter().position(|x| x == "b").unwrap();
+        let pos_a = order.iter().position(|x| x == "a").unwrap();
+        assert!(pos_c < pos_b);
+        assert!(pos_b < pos_a);
+    }
+
+    #[test]
     fn test_topo_sort_circular_dep() {
         let mut tools = IndexMap::new();
         tools.insert("a".to_string(), make_tool(true, Some(vec!["b"])));
         tools.insert("b".to_string(), make_tool(true, Some(vec!["a"])));
         assert!(topo_sort(&tools).is_err());
+    }
+
+    #[test]
+    fn test_topo_sort_empty() {
+        let tools = IndexMap::new();
+        let order = topo_sort(&tools).unwrap();
+        assert!(order.is_empty());
+    }
+
+    #[test]
+    fn test_topo_sort_single_tool() {
+        let mut tools = IndexMap::new();
+        tools.insert("build".to_string(), make_tool(true, None));
+        let order = topo_sort(&tools).unwrap();
+        assert_eq!(order, vec!["build"]);
+    }
+
+    #[test]
+    fn test_topo_sort_dep_not_in_tools_is_ignored() {
+        // test depends on "build" but build is not in the tools map
+        let mut tools = IndexMap::new();
+        tools.insert("test".to_string(), make_tool(true, Some(vec!["build"])));
+        // Should not fail - missing deps are silently ignored
+        let order = topo_sort(&tools).unwrap();
+        assert_eq!(order, vec!["test"]);
+    }
+
+    #[test]
+    fn test_make_skipped_report_with_output_path() {
+        let tool = make_tool_with_output(true, Some("quality/build.md"));
+        let r = make_skipped_report("build", &tool, "test reason");
+        assert_eq!(r.status, ToolStatus::Skipped);
+        assert_eq!(r.output_path, "quality/build.md");
+        assert_eq!(r.tool_name, "build");
+        assert!(r.summary.contains("test reason"));
+    }
+
+    #[test]
+    fn test_make_skipped_report_without_output_path_uses_default() {
+        let tool = make_tool_with_output(true, None);
+        let r = make_skipped_report("clippy", &tool, "missing dep");
+        assert_eq!(r.status, ToolStatus::Skipped);
+        // Should use the builtin default for clippy
+        assert_eq!(r.output_path, "quality/clippy.md");
     }
 }

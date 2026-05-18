@@ -7,7 +7,9 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let dep_count = combined
         .lines()
         .filter(|l| {
-            let trimmed = l.trim_start_matches(|c: char| c == ' ' || c == '│' || c == '├' || c == '└' || c == '─');
+            let trimmed = l.trim_start_matches(|c: char| {
+                c == ' ' || c == '│' || c == '├' || c == '└' || c == '─'
+            });
             !trimmed.is_empty() && !trimmed.starts_with('[')
         })
         .count();
