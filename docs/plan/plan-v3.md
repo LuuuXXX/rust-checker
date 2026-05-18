@@ -8,36 +8,36 @@
 
 ## 一、v3 目标定位
 
-v2 完成了工具的生产可用性；v3 聚焦三个方向：**提升执行效率**、**开放插件生态**、**增强趋势与可观测性**，使工具从单次检查演进为持续质量治理平台。
+v2 完成了工具的生产可用性；v3 聚焦两个方向：**开放插件生态**、**增强趋势与可观测性**，使工具从单次检查演进为持续质量治理平台。执行方式维持串行确定性执行，并行调度作为未来优化方向留待后续版本。
 
 ---
 
-## 二、并行执行优化
+## 二、串行执行方案
 
-### 2.1 工具并行调度
+v3 沿用 v2 的串行执行模型，按配置声明的顺序依次运行各工具，确保每次执行结果确定可重现。
 
-当前 v2 按顺序执行所有工具，v3 引入并行调度：
-
-- 无依赖关系的工具并发执行（如 clippy、fmt、doc 可同时运行）
-- 有依赖关系的工具保持顺序（如 coverage 依赖 test 产物）
-- `config.toml` 支持声明工具间依赖（`depends_on` 字段）
+- 所有工具按固定顺序顺序执行，无并发干扰
+- 工具间可通过 `depends_on` 显式声明顺序依赖，便于未来扩展
+- 执行过程输出清晰的进度日志，便于排查问题
 
 **配置示例**：
 
 ```toml
 [tools.coverage]
-depends_on = ["test"]   # coverage 等待 test 完成后才执行
+depends_on = ["test"]   # coverage 在 test 之后执行
 ```
 
-**执行计划输出示例**：
+**执行输出示例**：
 
 ```
-[scheduler] Execution plan:
-  Stage 1 (parallel): build, fmt, clippy, doc
-  Stage 2 (parallel): test, audit, deny, geiger
-  Stage 3 (parallel): coverage, bench, bloat, flamegraph
-  Stage 4 (parallel): msrv, semver, udeps, deps
+[runner] Running tools in sequence:
+  [1/4] build    ... ✓
+  [2/4] clippy   ... ✓
+  [3/4] test     ... ✓
+  [4/4] coverage ... ✓
 ```
+
+> **未来方向**：并行调度（无依赖工具并发执行）已纳入规划，将在后续版本中以可选方式引入。
 
 ---
 
@@ -248,7 +248,6 @@ debounce_ms = 500                   # 防抖延迟（ms）
 
 | 优先级 | 内容 | 说明 |
 |--------|------|------|
-| P0 | 并行调度（无依赖工具并发执行） | 显著缩短整体耗时 |
 | P0 | 历史存储 + `diff` 命令增强 | 趋势感知，治理核心 |
 | P1 | Workspace / Monorepo 支持 | 大型项目必要能力 |
 | P1 | 配置版本管理（`schema_version` + `upgrade`） | 长期维护可用性 |
