@@ -1,3 +1,4 @@
 /target/
 .localcheck/logs/
 .localcheck/reports/
+Cargo.lock
