@@ -55,16 +55,10 @@ impl Logger {
     pub fn log_tool_output(&mut self, name: &str, stdout: &str, stderr: &str) -> Result<()> {
         self.write_line(&format!("OUTPUT tool={}", name))?;
         if !stdout.is_empty() {
-            self.write_line(&format!(
-                "  stdout: {}",
-                stdout.lines().take(5).collect::<Vec<_>>().join(" | ")
-            ))?;
+            self.write_line(&format!("  stdout:\n{}", stdout))?;
         }
         if !stderr.is_empty() {
-            self.write_line(&format!(
-                "  stderr: {}",
-                stderr.lines().take(5).collect::<Vec<_>>().join(" | ")
-            ))?;
+            self.write_line(&format!("  stderr:\n{}", stderr))?;
         }
         Ok(())
     }

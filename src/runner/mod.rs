@@ -156,12 +156,12 @@ impl Runner {
 
         write_summary(&self.report_dir, &reports)?;
 
-        if self.ci_mode {
+        if self.ci_mode || self.format == ReportFormat::Json {
             let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string();
             let json = crate::report::json::build_ci_json(&reports, &timestamp);
             let json_path = self.report_dir.join("ci_result.json");
             std::fs::write(&json_path, serde_json::to_string_pretty(&json)?)?;
-            println!("CI JSON: {}", json_path.display());
+            println!("JSON: {}", json_path.display());
         }
 
         println!("\n✅ 检查完成，报告已生成: {}", self.report_dir.display());

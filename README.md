@@ -42,7 +42,7 @@ rust-checker --version
 cd /path/to/your/project
 
 # 2. 初始化配置（选择预设）
-rust-checker init --preset standard
+rust-checker init --preset quality
 
 # 3. 运行检查
 rust-checker run
