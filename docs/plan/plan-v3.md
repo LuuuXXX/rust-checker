@@ -39,20 +39,6 @@ depends_on = ["test"]   # coverage 等待 test 完成后才执行
   Stage 4 (parallel): msrv, semver, udeps, deps
 ```
 
-### 2.2 增量执行（缓存）
-
-- 对源文件未变更的工具跳过重新执行，直接复用上次报告
-- 基于文件 Hash 判断是否需要重跑（存储于 `.localcheck/cache/`）
-- `run --force` 参数强制全量重跑
-
-**缓存状态示例**：
-
-```
-[cache] clippy   ... unchanged (skipped, last run: 2026-05-17 14:32)
-[cache] fmt      ... unchanged (skipped)
-[cache] test     ... changed   (re-running)
-```
-
 ---
 
 ## 三、插件机制
@@ -240,8 +226,6 @@ debounce_ms = 500                   # 防抖延迟（ms）
 ```
 .localcheck/
 ├── config.toml           # 含 schema_version
-├── cache/                # 新增：增量执行缓存
-│   └── <tool>.<hash>
 ├── history/              # 新增：历史记录
 │   ├── 20260510-143200/
 │   └── 20260518-093000/
@@ -266,7 +250,6 @@ debounce_ms = 500                   # 防抖延迟（ms）
 |--------|------|------|
 | P0 | 并行调度（无依赖工具并发执行） | 显著缩短整体耗时 |
 | P0 | 历史存储 + `diff` 命令增强 | 趋势感知，治理核心 |
-| P1 | 增量执行（文件变更缓存） | 开发阶段频繁运行时体验关键 |
 | P1 | Workspace / Monorepo 支持 | 大型项目必要能力 |
 | P1 | 配置版本管理（`schema_version` + `upgrade`） | 长期维护可用性 |
 | P2 | 插件机制（接口规范 + 安装命令） | 生态开放基础 |
@@ -280,7 +263,7 @@ debounce_ms = 500                   # 防抖延迟（ms）
 ## 十、与 v2 的兼容性
 
 - `config.toml` 向前兼容：无 `schema_version` 字段时视为 v1，自动兼容
-- v2 报告目录结构保持不变，history 与 cache 为新增目录
+- v2 报告目录结构保持不变，history 为新增目录
 - 插件机制完全可选，不影响现有内置工具行为
 
 ---
