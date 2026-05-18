@@ -124,8 +124,7 @@ mod tests {
     fn test_get_tool_dep_known_tools() {
         // Tools that always use cargo (no special binary needed)
         for tool in &["build", "test", "bench", "doc", "deps", "binary"] {
-            let dep = get_tool_dep(tool)
-                .unwrap_or_else(|| panic!("expected dep for {tool}"));
+            let dep = get_tool_dep(tool).unwrap_or_else(|| panic!("expected dep for {tool}"));
             assert_eq!(dep.binary, "cargo");
             assert!(dep.cargo_install.is_none());
         }
@@ -148,8 +147,7 @@ mod tests {
             ("flamegraph", "cargo-flamegraph"),
         ];
         for (tool, expected_binary) in &cases {
-            let dep = get_tool_dep(tool)
-                .unwrap_or_else(|| panic!("expected dep for {tool}"));
+            let dep = get_tool_dep(tool).unwrap_or_else(|| panic!("expected dep for {tool}"));
             assert_eq!(dep.binary, *expected_binary, "wrong binary for {tool}");
             assert!(
                 dep.cargo_install.is_some(),
