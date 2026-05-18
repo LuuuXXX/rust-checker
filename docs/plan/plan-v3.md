@@ -82,11 +82,50 @@ rust-checker plugin remove <name>     # 卸载插件
 rust-checker plugin update            # 更新所有插件
 ```
 
+安装后，插件的 `plugin.toml` 被拉取到本地项目的 `.localcheck/plugins/<plugin-name>/` 目录。随后在本地 `.localcheck/config.toml` 中启用该插件（与内置工具配置方式一致），再执行 `rust-checker run` 时插件会与内置工具一同被调度运行。
+
+**本地项目不需要自行编写 `plugin.toml`**，该文件由插件发布者维护并托管于中心仓。
+
 ### 3.3 官方插件仓库
 
-- 维护 `rust-checker-plugins` 仓库，收录社区贡献的标准插件
-- 插件通过 `rust-checker plugin add <name>` 一键安装
+`rust-checker-plugins` 是独立的 GitHub 仓库，作为插件**注册表**，收录社区贡献的 `plugin.toml` 描述文件。该仓库只保存描述文件，不包含运行时逻辑（解析器实现位于 rust-checker 主程序或未来支持动态加载）。
+
+**目录结构示例**：
+
+```
+rust-checker-plugins/
+├── cargo-deny/
+│   └── plugin.toml
+├── cargo-geiger/
+│   └── plugin.toml
+└── ...
+```
+
+- 插件通过 `rust-checker plugin add <name>` 一键从该仓库安装到本地
 - 提供插件贡献指南（贡献规范 + CI 验证）
+
+### 3.4 完整使用流程
+
+```
+插件作者
+  → 编写 plugin.toml，提交到 rust-checker-plugins 中心仓
+
+本地用户
+  → rust-checker plugin add cargo-deny
+      （从中心仓拉取 plugin.toml 到 .localcheck/plugins/cargo-deny/）
+  → 在 .localcheck/config.toml 中启用插件
+  → rust-checker run
+      （插件与内置工具一同按序执行）
+```
+
+### 3.5 当前实现待办
+
+| 编号 | 内容 |
+|------|------|
+| 1 | 定义并稳定 `plugin.toml` schema |
+| 2 | 实现 `rust-checker plugin add/remove/list/update` 子命令 |
+| 3 | 执行引擎支持动态加载插件的 `command` 与 `report_parser` |
+| 4 | 创建并维护 `rust-checker-plugins` 中心仓，建立贡献规范与 CI 验证 |
 
 ---
 
