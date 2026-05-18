@@ -15,6 +15,7 @@ use crate::tools::parse_tool_output;
 
 pub struct Runner {
     config: Config,
+    working_dir: PathBuf,
     report_dir: PathBuf,
     log_dir: PathBuf,
     history_dir: PathBuf,
@@ -26,6 +27,7 @@ impl Runner {
     pub fn new(config: Config, base_dir: &Path, format: ReportFormat, ci_mode: bool) -> Self {
         Runner {
             config,
+            working_dir: base_dir.to_path_buf(),
             report_dir: base_dir.join(".localcheck").join("reports"),
             log_dir: base_dir.join(".localcheck").join("logs"),
             history_dir: base_dir.join(".localcheck").join("history"),
@@ -122,6 +124,7 @@ impl Runner {
 
             let output = std::process::Command::new(program)
                 .args(args)
+                .current_dir(&self.working_dir)
                 .output()
                 .with_context(|| format!("Failed to run: {cmd_str}"))?;
 
@@ -157,6 +160,11 @@ impl Runner {
         pb.finish_with_message("Done");
 
         write_summary(&self.report_dir, &reports)?;
+
+        // Also write HTML summary when format is HTML
+        if self.format == ReportFormat::Html {
+            crate::report::html::write_summary_html(&self.report_dir, &reports)?;
+        }
 
         if self.ci_mode || self.format == ReportFormat::Json {
             let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string();
