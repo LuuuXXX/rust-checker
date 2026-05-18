@@ -13,14 +13,15 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         if line.contains("test result:") {
             found_result = true;
             // "test result: ok. 5 passed; 0 failed; 0 ignored"
+            // Accumulate across all test binaries (unit tests, integration tests, …)
             if let Some(p) = extract_number(line, "passed") {
-                passed = p;
+                passed += p;
             }
             if let Some(f) = extract_number(line, "failed") {
-                failed = f;
+                failed += f;
             }
             if let Some(i) = extract_number(line, "ignored") {
-                ignored = i;
+                ignored += i;
             }
         }
     }
@@ -87,5 +88,29 @@ mod tests {
     fn test_parse_empty() {
         let r = parse("", "", 0, "cargo test");
         assert_eq!(r.status, ToolStatus::Ok);
+    }
+
+    #[test]
+    fn test_parse_multiple_result_lines_are_accumulated() {
+        // cargo test prints one "test result:" line per test binary;
+        // counts must be summed across all binaries.
+        let stdout = concat!(
+            "test result: ok. 133 passed; 0 failed; 2 ignored; finished in 0.05s\n",
+            "test result: ok. 0 passed; 0 failed; 0 ignored; finished in 0.00s\n",
+            "test result: ok. 18 passed; 1 failed; 0 ignored; finished in 0.03s\n",
+        );
+        let r = parse(stdout, "", 1, "cargo test");
+        assert_eq!(r.status, ToolStatus::Error);
+        // 133+0+18 = 151, 0+0+1 = 1, 2+0+0 = 2
+        assert!(
+            r.summary.contains("151"),
+            "expected 151 passed in: {}",
+            r.summary
+        );
+        assert!(
+            r.summary.contains('1'),
+            "expected 1 failed in: {}",
+            r.summary
+        );
     }
 }

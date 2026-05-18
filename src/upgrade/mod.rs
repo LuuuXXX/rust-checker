@@ -93,7 +93,13 @@ fn replace_schema_version(content: &str, new_version: &str) -> String {
     if !found {
         lines.insert(0, format!("schema_version = \"{new_version}\""));
     }
-    lines.join("\n")
+    let mut result = lines.join("\n");
+    // str::lines() strips the trailing newline; restore it so we don't mutate
+    // config files that originally ended with a newline.
+    if content.ends_with('\n') {
+        result.push('\n');
+    }
+    result
 }
 
 #[cfg(test)]
@@ -189,5 +195,23 @@ mod tests {
         let updated = replace_schema_version(content, "2");
         assert!(updated.contains("schema_version = \"2\""));
         assert!(!updated.contains("schema_version = \"1\""));
+    }
+
+    #[test]
+    fn test_replace_schema_version_preserves_trailing_newline() {
+        let content = "schema_version = \"1\"\nfoo = true\n";
+        let updated = replace_schema_version(content, "2");
+        assert!(
+            updated.ends_with('\n'),
+            "trailing newline should be preserved"
+        );
+    }
+
+    #[test]
+    fn test_replace_schema_version_no_trailing_newline() {
+        let content = "schema_version = \"1\"";
+        let updated = replace_schema_version(content, "2");
+        // Original had no trailing newline — result should not add one either.
+        assert!(!updated.ends_with('\n'));
     }
 }

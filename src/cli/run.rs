@@ -59,14 +59,21 @@ pub fn run_check_full(
             }
         }
     } else if changed_only {
-        // --changed: only run tools for changed crates
-        let changed = crate::workspace::get_changed_crates(project_dir)?;
-        if changed.is_empty() {
-            println!("ℹ️  没有检测到变更的 crate，跳过检查。");
-            return Ok(());
+        // --changed: workspace mode only — bail early for non-workspace projects
+        match crate::workspace::detect_workspace(project_dir) {
+            None => {
+                anyhow::bail!("当前项目不是 Cargo workspace，无法使用 --changed 选项");
+            }
+            Some(_) => {
+                let changed = crate::workspace::get_changed_crates(project_dir)?;
+                if changed.is_empty() {
+                    println!("ℹ️  没有检测到变更的 crate，跳过检查。");
+                    return Ok(());
+                }
+                println!("🔍 变更的 crate: {}", changed.join(", "));
+                project_dir.to_path_buf()
+            }
         }
-        println!("🔍 变更的 crate: {}", changed.join(", "));
-        project_dir.to_path_buf()
     } else {
         project_dir.to_path_buf()
     };
