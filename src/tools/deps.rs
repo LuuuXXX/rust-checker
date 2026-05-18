@@ -3,7 +3,7 @@ use crate::tools::{ReportSection, ReportStatus, ToolParser, ToolReport};
 pub struct DepsParser;
 
 impl ToolParser for DepsParser {
-    fn parse(&self, stdout: &str, stderr: &str, exit_code: i32) -> ToolReport {
+    fn parse(&self, stdout: &str, _stderr: &str, exit_code: i32) -> ToolReport {
         let lines: Vec<&str> = stdout.lines().collect();
         let total = lines.len();
         let direct = lines
@@ -38,9 +38,6 @@ impl ToolParser for DepsParser {
                 break;
             }
         }
-
-        // suppress unused stderr warning
-        let _ = stderr;
 
         ToolReport {
             status,

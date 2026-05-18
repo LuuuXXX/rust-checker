@@ -7,15 +7,21 @@ impl ToolParser for CoverageParser {
         let combined = format!("{}\n{}", stdout, stderr);
 
         let mut line_pct = "N/A".to_string();
-        let branch_pct = "N/A".to_string();
-        let func_pct = "N/A".to_string();
+        let mut branch_pct = "N/A".to_string();
+        let mut func_pct = "N/A".to_string();
 
         for line in combined.lines() {
-            // llvm-cov output: "TOTAL    ... 75.00%"
+            // llvm-cov summary output: columns are Regions, Missed, Cover, Functions, Missed, Cover, Lines, Missed, Cover
             if line.starts_with("TOTAL") || line.contains("Total") {
                 let parts: Vec<&str> = line.split_whitespace().collect();
-                if parts.len() >= 4 {
-                    line_pct = parts[parts.len() - 1].to_string();
+                // Try to extract line, function, and branch coverage percentages from the output
+                let pcts: Vec<&str> = parts.iter().filter(|p| p.ends_with('%')).copied().collect();
+                if pcts.len() >= 3 {
+                    line_pct = pcts[2].to_string();    // Lines cover
+                    func_pct = pcts[1].to_string();    // Functions cover
+                    branch_pct = pcts[0].to_string();  // Regions cover (used as branch proxy)
+                } else if pcts.len() == 1 {
+                    line_pct = pcts[0].to_string();
                 }
             }
         }
