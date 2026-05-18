@@ -122,7 +122,7 @@ mod tests {
         let mut f = std::fs::File::create(dir.join("Cargo.toml")).unwrap();
         write!(
             f,
-            "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n"
+            "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
         )
         .unwrap();
     }

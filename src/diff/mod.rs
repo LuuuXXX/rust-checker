@@ -71,7 +71,7 @@ fn status_emoji(status: &str) -> &'static str {
 
 fn change_indicator(old: Option<&str>, new: Option<&str>) -> &'static str {
     match (old, new) {
-        (None, Some(_)) => "❌ 新增",
+        (None, Some(_)) => "➕ 新增",
         (Some(_), None) => "🗑️ 移除",
         (Some(o), Some(n)) if o == n => "→",
         (Some(_), Some("ok")) => "↑ 改善",
