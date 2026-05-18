@@ -139,6 +139,8 @@ impl Runner {
 
             let output = std::process::Command::new(program)
                 .args(args)
+                // Run tools in the effective project directory (workspace member path
+                // when --crate is used, otherwise the project root).
                 .current_dir(&self.working_dir)
                 .output()
                 .with_context(|| format!("Failed to run: {cmd_str}"))?;

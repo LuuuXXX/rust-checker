@@ -13,7 +13,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         if line.contains("test result:") {
             found_result = true;
             // "test result: ok. 5 passed; 0 failed; 0 ignored"
-            // Accumulate across all test binaries (unit tests, integration tests, …)
+            // Accumulate across all test binaries (unit tests, integration tests, etc.)
             if let Some(p) = extract_number(line, "passed") {
                 passed += p;
             }
