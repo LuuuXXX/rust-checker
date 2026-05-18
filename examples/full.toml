@@ -1,0 +1,134 @@
+# rust-checker 完整配置示例 (full preset)
+#
+# 启用全部 18 个内置工具，覆盖代码质量、安全、依赖、性能、兼容性。
+# 适合：完整质量门禁，发布前检查，开源项目全量审计。
+#
+# 生成命令：rust-checker init --preset full
+#
+# 注意：部分工具需要额外安装（见各工具 desc），缺少依赖时会提示安装或跳过。
+
+schema_version = "1"
+
+[rust]
+rustflags = ""
+
+# ──────────────────────────────────────────────────────────
+# 代码质量 → .localcheck/reports/quality/
+# ──────────────────────────────────────────────────────────
+
+[tools.build]
+desc = "构建项目"
+active = true
+input_command = "cargo build"
+
+[tools.test]
+desc = "运行单元测试与集成测试"
+active = true
+input_command = "cargo test"
+depends_on = ["build"]
+
+[tools.coverage]
+desc = "测试覆盖率（需要: cargo install cargo-llvm-cov）"
+active = true
+input_command = "cargo llvm-cov"
+depends_on = ["build"]
+
+[tools.clippy]
+desc = "代码静态分析"
+active = true
+input_command = "cargo clippy -- -D warnings"
+
+[tools.fmt]
+desc = "代码格式检查"
+active = true
+input_command = "cargo fmt --check"
+
+[tools.doc]
+desc = "文档构建检查"
+active = true
+input_command = "cargo doc --no-deps"
+
+# ──────────────────────────────────────────────────────────
+# 安全 → .localcheck/reports/security/
+# ──────────────────────────────────────────────────────────
+
+[tools.audit]
+desc = "依赖安全漏洞审计（需要: cargo install cargo-audit）"
+active = true
+input_command = "cargo audit"
+
+[tools.deny]
+desc = "依赖策略与许可证检查（需要: cargo install cargo-deny）"
+active = true
+input_command = "cargo deny check"
+
+[tools.geiger]
+desc = "unsafe 代码溯源统计（需要: cargo install cargo-geiger）"
+active = true
+input_command = "cargo geiger"
+
+# ──────────────────────────────────────────────────────────
+# 代码指标 → .localcheck/reports/perf/
+# ──────────────────────────────────────────────────────────
+
+[tools.metrics]
+desc = "代码指标统计（需要: cargo install cargo-geiger）"
+active = true
+input_command = "cargo geiger --output-format Ratio"
+
+# ──────────────────────────────────────────────────────────
+# 依赖分析 → .localcheck/reports/deps/
+# ──────────────────────────────────────────────────────────
+
+[tools.deps]
+desc = "依赖树展示"
+active = true
+input_command = "cargo tree"
+
+# ──────────────────────────────────────────────────────────
+# 兼容性 → .localcheck/reports/compat/
+# ──────────────────────────────────────────────────────────
+
+[tools.msrv]
+desc = "最低支持 Rust 版本验证（需要: cargo install cargo-msrv）"
+active = true
+input_command = "cargo msrv"
+
+[tools.semver]
+desc = "语义化版本 API 变更检查（需要: cargo install cargo-semver-checks）"
+active = true
+input_command = "cargo semver-checks"
+
+[tools.binary]
+desc = "Release 二进制信息与 SHA-256"
+active = true
+input_command = "cargo build --release"
+
+# ──────────────────────────────────────────────────────────
+# 性能 → .localcheck/reports/perf/
+# ──────────────────────────────────────────────────────────
+
+[tools.bench]
+desc = "基准测试"
+active = true
+input_command = "cargo bench"
+depends_on = ["build"]
+
+[tools.bloat]
+desc = "Release 二进制体积分析（需要: cargo install cargo-bloat）"
+active = true
+input_command = "cargo bloat --release"
+
+[tools.flamegraph]
+desc = "性能火焰图（需要: cargo install flamegraph；Linux 需要 perf）"
+active = true
+input_command = "cargo flamegraph"
+
+# ──────────────────────────────────────────────────────────
+# 依赖 (nightly) → .localcheck/reports/deps/
+# ──────────────────────────────────────────────────────────
+
+[tools.udeps]
+desc = "未使用依赖检测（需要: cargo install cargo-udeps；需要 nightly）"
+active = true
+input_command = "cargo +nightly udeps"

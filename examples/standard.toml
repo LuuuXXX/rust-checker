@@ -1,0 +1,43 @@
+# rust-checker 标准配置示例 (standard / quality preset)
+#
+# 启用代码质量全套工具：构建、测试、覆盖率、Clippy、格式、文档。
+# 适合：日常 CI 集成，开源项目维护。
+#
+# 生成命令：rust-checker init --preset quality
+
+schema_version = "1"
+
+[rust]
+rustflags = ""
+
+[tools.build]
+desc = "构建项目"
+active = true
+input_command = "cargo build"
+
+[tools.test]
+desc = "运行单元测试与集成测试"
+active = true
+input_command = "cargo test"
+depends_on = ["build"]
+
+[tools.coverage]
+desc = "测试覆盖率（需要 cargo-llvm-cov）"
+active = true
+input_command = "cargo llvm-cov"
+depends_on = ["build"]
+
+[tools.clippy]
+desc = "代码静态分析"
+active = true
+input_command = "cargo clippy -- -D warnings"
+
+[tools.fmt]
+desc = "代码格式检查"
+active = true
+input_command = "cargo fmt --check"
+
+[tools.doc]
+desc = "文档构建检查"
+active = true
+input_command = "cargo doc --no-deps"
