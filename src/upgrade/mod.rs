@@ -47,18 +47,14 @@ pub fn upgrade_config(project_dir: &Path) -> Result<()> {
 ///
 /// Returns `"0"` if the field is absent (pre-versioned configs).
 pub fn detect_version(content: &str) -> String {
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("schema_version") {
-            if let Some(idx) = trimmed.find('"') {
-                let after = &trimmed[idx + 1..];
-                if let Some(end) = after.find('"') {
-                    return after[..end].to_string();
-                }
-            }
-        }
+    #[derive(serde::Deserialize)]
+    struct VersionOnly {
+        schema_version: Option<String>,
     }
-    "0".to_string()
+    toml::from_str::<VersionOnly>(content)
+        .ok()
+        .and_then(|v| v.schema_version)
+        .unwrap_or_else(|| "0".to_string())
 }
 
 fn migrate_to_current(content: &str, from_version: &str) -> Result<String> {
@@ -123,6 +119,27 @@ mod tests {
     #[test]
     fn test_detect_version_missing() {
         let content = "[tools.build]\ndesc = \"build\"\n";
+        assert_eq!(detect_version(content), "0");
+    }
+
+    #[test]
+    fn test_detect_version_single_quotes() {
+        // TOML supports single-quoted strings
+        let content = "schema_version = '2'\n";
+        assert_eq!(detect_version(content), "2");
+    }
+
+    #[test]
+    fn test_detect_version_no_space_around_equals() {
+        // Compact notation is valid TOML
+        let content = "schema_version=\"1\"\n";
+        assert_eq!(detect_version(content), "1");
+    }
+
+    #[test]
+    fn test_detect_version_comment_not_matched() {
+        // A comment containing schema_version should not be picked up
+        let content = "# schema_version = \"old\"\nfoo = true\n";
         assert_eq!(detect_version(content), "0");
     }
 

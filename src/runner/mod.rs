@@ -36,6 +36,15 @@ impl Runner {
         }
     }
 
+    /// Write a tool report (always markdown; also HTML when the run format is HTML).
+    fn write_report(&self, report: &ToolReport) -> Result<()> {
+        crate::report::markdown::write_tool_report(&self.report_dir, report)?;
+        if self.format == ReportFormat::Html {
+            crate::report::html::write_tool_report_html(&self.report_dir, report)?;
+        }
+        Ok(())
+    }
+
     pub fn run(&self) -> Result<()> {
         std::fs::create_dir_all(&self.report_dir)?;
         std::fs::create_dir_all(&self.log_dir)?;
@@ -64,7 +73,9 @@ impl Runner {
 
             if !tool_cfg.active {
                 logger.log_tool_skipped(tool_name, "inactive")?;
-                reports.push(make_skipped_report(tool_name, tool_cfg, "工具已禁用"));
+                let report = make_skipped_report(tool_name, tool_cfg, "工具已禁用");
+                self.write_report(&report)?;
+                reports.push(report);
                 pb.inc(1);
                 continue;
             }
@@ -91,7 +102,9 @@ impl Runner {
                 if !failed_deps.is_empty() {
                     let reason = format!("依赖失败: {}", failed_deps.join(", "));
                     logger.log_tool_skipped(tool_name, &reason)?;
-                    reports.push(make_skipped_report(tool_name, tool_cfg, &reason));
+                    let report = make_skipped_report(tool_name, tool_cfg, &reason);
+                    self.write_report(&report)?;
+                    reports.push(report);
                     pb.inc(1);
                     continue;
                 }
@@ -108,7 +121,9 @@ impl Runner {
                     if !installed {
                         let reason = format!("缺少依赖: {}", dep.binary);
                         logger.log_tool_skipped(tool_name, &reason)?;
-                        reports.push(make_skipped_report(tool_name, tool_cfg, &reason));
+                        let report = make_skipped_report(tool_name, tool_cfg, &reason);
+                        self.write_report(&report)?;
+                        reports.push(report);
                         pb.inc(1);
                         continue;
                     }
@@ -144,13 +159,7 @@ impl Runner {
                 report.output_path = op.clone();
             }
 
-            // Write markdown report
-            crate::report::markdown::write_tool_report(&self.report_dir, &report)?;
-
-            // Write HTML report if format is HTML
-            if self.format == ReportFormat::Html {
-                crate::report::html::write_tool_report_html(&self.report_dir, &report)?;
-            }
+            self.write_report(&report)?;
 
             logger.log_report_generated(&report.output_path)?;
             reports.push(report);

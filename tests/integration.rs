@@ -310,6 +310,53 @@ input_command = "cargo build"
 }
 
 // ---------------------------------------------------------------------------
+// Skipped tool report files are written to disk (linked from summary.md)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_run_inactive_tool_report_file_is_written() {
+    let dir = temp_dir();
+    let localcheck = dir.path().join(".localcheck");
+    std::fs::create_dir_all(&localcheck).unwrap();
+
+    std::fs::write(
+        localcheck.join("config.toml"),
+        r#"schema_version = "1"
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .output()
+        .expect("run command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    // The skipped tool report file must exist so summary.md links are valid
+    let report_path = localcheck.join("reports").join("quality").join("build.md");
+    assert!(
+        report_path.exists(),
+        "skipped tool report quality/build.md not found"
+    );
+    let content = std::fs::read_to_string(&report_path).unwrap();
+    assert!(
+        content.contains("build"),
+        "skipped report should mention tool name"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Phase 3: `rust-checker run` creates history entry
 // ---------------------------------------------------------------------------
 

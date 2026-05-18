@@ -28,7 +28,7 @@ pub fn run_watch(project_dir: &Path, tools: Option<Vec<String>>) -> Result<()> {
         crate::cli::run::run_check(
             &project_dir_owned,
             crate::report::ReportFormat::Markdown,
-            true,
+            false,
             only,
         )
     })
