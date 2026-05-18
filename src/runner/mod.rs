@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use crate::config::{Config, ToolConfig};
+use crate::config::{Config, HistoryConfig, ToolConfig};
 use crate::logger::Logger;
 use crate::report::{write_summary, ReportFormat, ToolReport, ToolStatus};
 use crate::runner::dependency_check::{check_tool_available, get_tool_dep, prompt_and_install};
@@ -17,6 +17,7 @@ pub struct Runner {
     config: Config,
     report_dir: PathBuf,
     log_dir: PathBuf,
+    history_dir: PathBuf,
     format: ReportFormat,
     ci_mode: bool,
 }
@@ -27,6 +28,7 @@ impl Runner {
             config,
             report_dir: base_dir.join(".localcheck").join("reports"),
             log_dir: base_dir.join(".localcheck").join("logs"),
+            history_dir: base_dir.join(".localcheck").join("history"),
             format,
             ci_mode,
         }
@@ -162,6 +164,17 @@ impl Runner {
             let json_path = self.report_dir.join("ci_result.json");
             std::fs::write(&json_path, serde_json::to_string_pretty(&json)?)?;
             println!("JSON: {}", json_path.display());
+        }
+
+        // Persist history snapshot
+        let max_entries = self
+            .config
+            .history
+            .as_ref()
+            .map(HistoryConfig::max_entries)
+            .unwrap_or(10);
+        if let Err(e) = crate::history::save_history(&reports, &self.history_dir, max_entries) {
+            eprintln!("⚠️  历史记录保存失败: {e}");
         }
 
         println!("\n✅ 检查完成，报告已生成: {}", self.report_dir.display());

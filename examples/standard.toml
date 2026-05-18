@@ -5,10 +5,14 @@
 #
 # 生成命令：rust-checker init --preset quality
 
-schema_version = "1"
+schema_version = "2"
 
 [rust]
 rustflags = ""
+
+# 历史记录配置（Phase 3 新增）
+[history]
+max_entries = 10
 
 [tools.build]
 desc = "构建项目"

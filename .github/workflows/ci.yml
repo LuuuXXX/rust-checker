@@ -123,6 +123,20 @@ jobs:
           echo "=== summary.md ==="
           cat .localcheck/reports/summary.md
 
+      - name: Verify history entry was created (Phase 3)
+        run: |
+          ls .localcheck/history/
+          find .localcheck/history -name "result.json" | head -1 | xargs cat
+
+      - name: rust-checker diff --last 1 (Phase 3)
+        run: ./target/debug/rust-checker diff --last 1
+
+      - name: rust-checker upgrade (Phase 3 - already v2, should be no-op)
+        run: ./target/debug/rust-checker upgrade
+
+      - name: rust-checker plugin list (Phase 3)
+        run: ./target/debug/rust-checker plugin list
+
       - name: Upload reports as artifact
         uses: actions/upload-artifact@v4
         if: always()

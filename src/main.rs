@@ -50,6 +50,85 @@ enum Commands {
         /// 只运行指定的工具（逗号分隔）
         #[arg(long, value_delimiter = ',')]
         only: Option<Vec<String>>,
+
+        /// 只检查指定 crate（Workspace 模式）
+        #[arg(long)]
+        crate_name: Option<String>,
+
+        /// 只检查本次 git diff 涉及的 crate（Workspace 模式）
+        #[arg(long)]
+        changed: bool,
+    },
+
+    /// 查看两次检查结果的差异或历史趋势
+    Diff {
+        /// 项目目录（默认当前目录）
+        #[arg(short, long, default_value = ".")]
+        dir: PathBuf,
+
+        /// 展示最近 N 次趋势
+        #[arg(long)]
+        last: Option<usize>,
+
+        /// 时间范围起始（YYYYMMDD 格式）
+        #[arg(long)]
+        from: Option<String>,
+
+        /// 时间范围结束（YYYYMMDD 格式）
+        #[arg(long)]
+        to: Option<String>,
+    },
+
+    /// 管理插件
+    Plugin {
+        #[command(subcommand)]
+        action: PluginAction,
+    },
+
+    /// 监听文件变更并自动重跑检查
+    Watch {
+        /// 项目目录（默认当前目录）
+        #[arg(short, long, default_value = ".")]
+        dir: PathBuf,
+
+        /// 只重跑指定工具（逗号分隔）
+        #[arg(long, value_delimiter = ',')]
+        tools: Option<Vec<String>>,
+    },
+
+    /// 将配置文件升级到最新 schema 版本
+    Upgrade {
+        /// 项目目录（默认当前目录）
+        #[arg(short, long, default_value = ".")]
+        dir: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum PluginAction {
+    /// 列出已安装的插件
+    List {
+        #[arg(short, long, default_value = ".")]
+        dir: PathBuf,
+    },
+    /// 从注册表安装插件
+    Add {
+        /// 插件名称
+        name: String,
+        #[arg(short, long, default_value = ".")]
+        dir: PathBuf,
+    },
+    /// 卸载插件
+    Remove {
+        /// 插件名称
+        name: String,
+        #[arg(short, long, default_value = ".")]
+        dir: PathBuf,
+    },
+    /// 更新所有已安装的插件
+    Update {
+        #[arg(short, long, default_value = ".")]
+        dir: PathBuf,
     },
 }
 
@@ -60,18 +139,54 @@ fn main() -> anyhow::Result<()> {
         Commands::Init { dir, preset, force } => {
             cli::init::run_init(&dir, &preset, force)?;
         }
+
         Commands::Run {
             dir,
             format,
             ci,
             only,
+            crate_name,
+            changed,
         } => {
             let report_format = match format.as_str() {
                 "html" => ReportFormat::Html,
                 "json" => ReportFormat::Json,
                 _ => ReportFormat::Markdown,
             };
-            cli::run::run_check(&dir, report_format, ci, only)?;
+            cli::run::run_check_full(&dir, report_format, ci, only, crate_name, changed)?;
+        }
+
+        Commands::Diff {
+            dir,
+            last,
+            from,
+            to,
+        } => {
+            let mode = if let Some(n) = last {
+                cli::diff::DiffMode::Last(n)
+            } else if from.is_some() || to.is_some() {
+                let from = from.unwrap_or_else(|| "00000000".to_string());
+                let to = to.unwrap_or_else(|| "99999999".to_string());
+                cli::diff::DiffMode::Range { from, to }
+            } else {
+                cli::diff::DiffMode::Latest
+            };
+            cli::diff::run_diff(&dir, mode)?;
+        }
+
+        Commands::Plugin { action } => match action {
+            PluginAction::List { dir } => cli::plugin::run_plugin_list(&dir)?,
+            PluginAction::Add { name, dir } => cli::plugin::run_plugin_add(&name, &dir)?,
+            PluginAction::Remove { name, dir } => cli::plugin::run_plugin_remove(&name, &dir)?,
+            PluginAction::Update { dir } => cli::plugin::run_plugin_update(&dir)?,
+        },
+
+        Commands::Watch { dir, tools } => {
+            cli::watch::run_watch(&dir, tools)?;
+        }
+
+        Commands::Upgrade { dir } => {
+            cli::upgrade::run_upgrade(&dir)?;
         }
     }
 

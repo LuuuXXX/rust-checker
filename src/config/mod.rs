@@ -7,8 +7,34 @@ use std::path::Path;
 pub struct Config {
     pub schema_version: Option<String>,
     pub rust: Option<RustConfig>,
+    pub history: Option<HistoryConfig>,
+    pub watch: Option<WatchConfig>,
     #[serde(default)]
     pub tools: IndexMap<String, ToolConfig>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct HistoryConfig {
+    pub max_entries: Option<u32>,
+}
+
+impl HistoryConfig {
+    pub fn max_entries(&self) -> u32 {
+        self.max_entries.unwrap_or(10)
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct WatchConfig {
+    pub paths: Option<Vec<String>>,
+    pub debounce_ms: Option<u64>,
+    pub tools: Option<Vec<String>>,
+}
+
+impl WatchConfig {
+    pub fn debounce_ms(&self) -> u64 {
+        self.debounce_ms.unwrap_or(500)
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
