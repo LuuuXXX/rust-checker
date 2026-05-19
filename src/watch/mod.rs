@@ -22,7 +22,12 @@ where
     let mut watcher = notify::recommended_watcher(tx)?;
 
     if options.paths.is_empty() {
-        anyhow::bail!("没有配置监听路径。请在 config.toml 的 [watch] 段中设置 paths。");
+        anyhow::bail!(
+            "没有配置监听路径。请在 config.toml 的 [watch] 段中设置 paths，例如：\n\
+             \n\
+             [watch]\n\
+             paths = [\"src\"]\n"
+        );
     }
 
     for path in &options.paths {

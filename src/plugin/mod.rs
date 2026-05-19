@@ -63,9 +63,12 @@ pub fn plugins_dir(project_dir: &Path) -> PathBuf {
 pub fn install_plugin(name: &str, project_dir: &Path) -> Result<()> {
     let url = format!("{REGISTRY_BASE_URL}/plugins/{name}/plugin.toml");
 
-    let response = ureq::get(&url)
-        .call()
-        .with_context(|| format!("无法从注册表下载插件 `{name}` (URL: {url})"))?;
+    let response = ureq::get(&url).call().with_context(|| {
+        format!(
+            "无法从注册表下载插件 `{name}` (URL: {url})。\n\
+                 请检查：网络连接是否正常、插件名称 `{name}` 是否正确。"
+        )
+    })?;
 
     let content = response
         .into_string()

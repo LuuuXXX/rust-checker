@@ -60,9 +60,8 @@ pub fn run_check_full(
         }
     } else if changed_only {
         // --changed acts as a "change-guard": when there are no changed crates the run
-        // is skipped entirely (saving time), but when there *are* changes tools are run
-        // at the workspace root rather than per-crate.  Per-crate filtering is a future
-        // enhancement.
+        // is skipped entirely (saving time); when there are changes tools run at the
+        // workspace root.  Per-crate filtering is not yet implemented.
         match crate::workspace::detect_workspace(project_dir) {
             None => {
                 anyhow::bail!("当前项目不是 Cargo workspace，无法使用 --changed 选项");
