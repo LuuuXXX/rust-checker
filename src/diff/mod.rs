@@ -38,14 +38,14 @@ pub fn diff_entries(old: &HistoryEntry, new: &HistoryEntry) -> Vec<ToolDiff> {
         new_map.insert(&t.tool_name, t);
     }
 
-    let mut all_names: Vec<&str> = old_map
+    // BTreeSet merges and sorts both key sets in one pass
+    let all_names: Vec<&str> = old_map
         .keys()
         .chain(new_map.keys())
         .copied()
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect();
-    all_names.sort_unstable();
 
     all_names
         .iter()
