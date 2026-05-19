@@ -25,7 +25,7 @@ enum Commands {
         dir: PathBuf,
 
         /// 预设配置 (minimal | quality | security | full)
-        #[arg(short, long, default_value = "minimal")]
+        #[arg(short, long, default_value = "quality")]
         preset: String,
 
         /// 强制重新生成（覆盖已有配置）
