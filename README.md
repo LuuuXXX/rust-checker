@@ -71,7 +71,7 @@ rust-checker init [OPTIONS]
 
 Options:
   -d, --dir <DIR>        项目目录（默认当前目录）
-  -p, --preset <PRESET>  预设配置 [默认: minimal]
+  -p, --preset <PRESET>  预设配置 [默认: quality]
                            minimal   - build, test, clippy, fmt
                            quality   - build, test, coverage, clippy, fmt, doc
                            security  - build, test, audit, deny, geiger
