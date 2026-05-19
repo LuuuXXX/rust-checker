@@ -109,7 +109,7 @@ Options:
       --ci                 CI 模式：跳过交互提示，生成 ci_result.json
       --only <TOOLS>       只运行指定工具（逗号分隔）
       --crate <CRATE>      只检查指定 crate（Workspace 模式）
-      --changed            只检查本次 git diff 涉及的 crate（Workspace 模式）
+      --changed            检测本次 git diff 是否有 crate 变更；无变更时跳过检查（Workspace 模式）
   -h, --help               显示帮助信息
 ```
 
@@ -131,7 +131,7 @@ rust-checker run --format html
 # Workspace：只检查指定 crate
 rust-checker run --crate my-lib
 
-# Workspace：只检查本次 git diff 涉及的 crate
+# Workspace：有 crate 变更时运行检查，无变更时跳过
 rust-checker run --changed
 ```
 

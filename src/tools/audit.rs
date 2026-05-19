@@ -51,10 +51,6 @@ fn count_vulnerabilities(output: &str) -> usize {
                 }
             }
         }
-        // JSON format: "count": N
-        if lower.contains("\"vulnerabilities\"") && lower.contains("\"count\"") {
-            continue;
-        }
         // "error[" lines indicate vulnerabilities in text mode
         if line.contains("error[") && line.contains("RUSTSEC") {
             return 1; // at least one
@@ -100,6 +96,27 @@ mod tests {
     #[test]
     fn test_audit_empty() {
         let r = parse("", "", 0, "cargo audit");
+        assert_eq!(r.status, ToolStatus::Ok);
+    }
+
+    #[test]
+    fn test_audit_json_vuln_count() {
+        // cargo audit --json produces a JSON object; the vulnerabilities.count field
+        // should be picked up by the JSON parsing branch.
+        let json = r#"{"vulnerabilities":{"count":2,"list":[]},"warnings":{}}"#;
+        let r = parse(json, "", 1, "cargo audit --json");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("2"),
+            "expected vuln count in: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_audit_json_no_vulns() {
+        let json = r#"{"vulnerabilities":{"count":0,"list":[]},"warnings":{}}"#;
+        let r = parse(json, "", 0, "cargo audit --json");
         assert_eq!(r.status, ToolStatus::Ok);
     }
 }

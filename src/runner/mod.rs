@@ -24,13 +24,19 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub fn new(config: Config, base_dir: &Path, format: ReportFormat, ci_mode: bool) -> Self {
+    pub fn new(
+        config: Config,
+        project_dir: &Path,
+        working_dir: &Path,
+        format: ReportFormat,
+        ci_mode: bool,
+    ) -> Self {
         Runner {
             config,
-            working_dir: base_dir.to_path_buf(),
-            report_dir: base_dir.join(".localcheck").join("reports"),
-            log_dir: base_dir.join(".localcheck").join("logs"),
-            history_dir: base_dir.join(".localcheck").join("history"),
+            working_dir: working_dir.to_path_buf(),
+            report_dir: project_dir.join(".localcheck").join("reports"),
+            log_dir: project_dir.join(".localcheck").join("logs"),
+            history_dir: project_dir.join(".localcheck").join("history"),
             format,
             ci_mode,
         }

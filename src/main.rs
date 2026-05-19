@@ -55,7 +55,7 @@ enum Commands {
         #[arg(long = "crate", value_name = "CRATE")]
         crate_name: Option<String>,
 
-        /// 只检查本次 git diff 涉及的 crate（Workspace 模式）
+        /// 只在本次 git diff 有 crate 变更时运行检查（Workspace 模式；无变更时跳过）
         #[arg(long)]
         changed: bool,
     },

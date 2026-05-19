@@ -59,7 +59,10 @@ pub fn run_check_full(
             }
         }
     } else if changed_only {
-        // --changed: workspace mode only — bail early for non-workspace projects
+        // --changed acts as a "change-guard": when there are no changed crates the run
+        // is skipped entirely (saving time), but when there *are* changes tools are run
+        // at the workspace root rather than per-crate.  Per-crate filtering is a future
+        // enhancement.
         match crate::workspace::detect_workspace(project_dir) {
             None => {
                 anyhow::bail!("当前项目不是 Cargo workspace，无法使用 --changed 选项");
@@ -90,6 +93,6 @@ pub fn run_check_full(
 
     println!("🔍 开始检查，共 {} 个工具", config.tools.len());
 
-    let runner = Runner::new(config, &effective_dir, format, ci_mode);
+    let runner = Runner::new(config, project_dir, &effective_dir, format, ci_mode);
     runner.run()
 }

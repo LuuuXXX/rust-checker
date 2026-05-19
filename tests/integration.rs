@@ -546,6 +546,72 @@ fn test_plugin_list_empty() {
     assert!(stdout.contains("没有") || stdout.contains("安装"));
 }
 
+// ---------------------------------------------------------------------------
+// `rust-checker run --crate` reports go to workspace root .localcheck/
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_run_crate_mode_reports_go_to_workspace_root() {
+    let dir = temp_dir();
+    let workspace_root = dir.path();
+    let localcheck = workspace_root.join(".localcheck");
+    std::fs::create_dir_all(&localcheck).unwrap();
+
+    // Create a fake workspace with one member crate
+    let crate_dir = workspace_root.join("crates").join("my-lib");
+    std::fs::create_dir_all(&crate_dir).unwrap();
+    std::fs::write(
+        crate_dir.join("Cargo.toml"),
+        "[package]\nname = \"my-lib\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        workspace_root.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/*\"]\n",
+    )
+    .unwrap();
+
+    // Config at workspace root
+    std::fs::write(
+        localcheck.join("config.toml"),
+        r#"schema_version = "1"
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(workspace_root)
+        .args(["--crate", "my-lib"])
+        .output()
+        .expect("run --crate command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    // Reports must be written to the WORKSPACE root .localcheck/reports/, not to
+    // crates/my-lib/.localcheck/reports/
+    let report_path = localcheck.join("reports").join("summary.md");
+    assert!(
+        report_path.exists(),
+        "summary.md should be in workspace root .localcheck/, not in crate subdir"
+    );
+
+    // Crate subdir must NOT have a stray .localcheck/ directory
+    assert!(
+        !crate_dir.join(".localcheck").exists(),
+        "stray .localcheck/ found in crate directory"
+    );
+}
+
 #[test]
 fn test_plugin_remove_nonexistent_is_ok() {
     let dir = temp_dir();
