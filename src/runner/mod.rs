@@ -98,9 +98,7 @@ impl Runner {
                             .unwrap_or(false)
                             && reports
                                 .iter()
-                                .find(|r| &r.tool_name == *d)
-                                .map(|r| r.status == ToolStatus::Error)
-                                .unwrap_or(false)
+                                .any(|r| &r.tool_name == *d && r.status == ToolStatus::Error)
                     })
                     .cloned()
                     .collect();

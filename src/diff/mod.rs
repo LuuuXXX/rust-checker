@@ -69,13 +69,27 @@ fn status_emoji(status: &str) -> &'static str {
     }
 }
 
+fn status_rank(s: &str) -> i8 {
+    match s {
+        "ok" => 2,
+        "warn" => 1,
+        "error" => 0,
+        _ => -1, // skipped / unknown
+    }
+}
+
 fn change_indicator(old: Option<&str>, new: Option<&str>) -> &'static str {
     match (old, new) {
         (None, Some(_)) => "➕ 新增",
         (Some(_), None) => "🗑️ 移除",
         (Some(o), Some(n)) if o == n => "→",
-        (Some(_), Some("ok")) => "↑ 改善",
-        (Some(_), Some(_)) => "↓ 劣化",
+        (Some(o), Some(n)) => {
+            if status_rank(n) > status_rank(o) {
+                "↑ 改善"
+            } else {
+                "↓ 劣化"
+            }
+        }
         _ => "→",
     }
 }
@@ -145,14 +159,13 @@ pub fn format_trend(entries: &[HistoryEntry]) -> String {
     let mut out = String::new();
     out.push_str("## 历史趋势\n\n");
 
-    // Collect all tool names across entries
-    let mut all_tools: Vec<String> = entries
+    // Collect all tool names across entries (BTreeSet keeps them sorted)
+    let all_tools: Vec<String> = entries
         .iter()
         .flat_map(|e| e.tools.iter().map(|t| t.tool_name.clone()))
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect();
-    all_tools.sort_unstable();
 
     // Header row: timestamps
     out.push_str("| 工具 |");
@@ -287,5 +300,48 @@ mod tests {
         assert!(output.contains("test"));
         assert!(output.contains("20260101-100000"));
         assert!(output.contains("20260101-110000"));
+    }
+
+    #[test]
+    fn test_change_indicator_improvement_error_to_warn() {
+        // error → warn is an improvement, not a regression
+        let indicator = change_indicator(Some("error"), Some("warn"));
+        assert_eq!(indicator, "↑ 改善");
+    }
+
+    #[test]
+    fn test_change_indicator_improvement_warn_to_ok() {
+        let indicator = change_indicator(Some("warn"), Some("ok"));
+        assert_eq!(indicator, "↑ 改善");
+    }
+
+    #[test]
+    fn test_change_indicator_regression_ok_to_warn() {
+        let indicator = change_indicator(Some("ok"), Some("warn"));
+        assert_eq!(indicator, "↓ 劣化");
+    }
+
+    #[test]
+    fn test_change_indicator_regression_ok_to_error() {
+        let indicator = change_indicator(Some("ok"), Some("error"));
+        assert_eq!(indicator, "↓ 劣化");
+    }
+
+    #[test]
+    fn test_change_indicator_same_status() {
+        let indicator = change_indicator(Some("ok"), Some("ok"));
+        assert_eq!(indicator, "→");
+    }
+
+    #[test]
+    fn test_change_indicator_new_tool() {
+        let indicator = change_indicator(None, Some("ok"));
+        assert_eq!(indicator, "➕ 新增");
+    }
+
+    #[test]
+    fn test_change_indicator_removed_tool() {
+        let indicator = change_indicator(Some("ok"), None);
+        assert_eq!(indicator, "🗑️ 移除");
     }
 }
