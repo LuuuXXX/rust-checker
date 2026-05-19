@@ -1,6 +1,12 @@
 pub mod cli;
 pub mod config;
+pub mod diff;
+pub mod history;
 pub mod logger;
+pub mod plugin;
 pub mod report;
 pub mod runner;
 pub mod tools;
+pub mod upgrade;
+pub mod watch;
+pub mod workspace;

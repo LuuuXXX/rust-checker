@@ -308,3 +308,317 @@ input_command = "cargo build"
     let content = std::fs::read_to_string(&summary_path).unwrap();
     assert!(content.contains("build"));
 }
+
+// ---------------------------------------------------------------------------
+// Skipped tool report files are written to disk (linked from summary.md)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_run_inactive_tool_report_file_is_written() {
+    let dir = temp_dir();
+    let localcheck = dir.path().join(".localcheck");
+    std::fs::create_dir_all(&localcheck).unwrap();
+
+    std::fs::write(
+        localcheck.join("config.toml"),
+        r#"schema_version = "1"
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .output()
+        .expect("run command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    // The skipped tool report file must exist so summary.md links are valid
+    let report_path = localcheck.join("reports").join("quality").join("build.md");
+    assert!(
+        report_path.exists(),
+        "skipped tool report quality/build.md not found"
+    );
+    let content = std::fs::read_to_string(&report_path).unwrap();
+    assert!(
+        content.contains("build"),
+        "skipped report should mention tool name"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: `rust-checker run` creates history entry
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_run_creates_history_entry() {
+    let dir = temp_dir();
+    let localcheck = dir.path().join(".localcheck");
+    std::fs::create_dir_all(&localcheck).unwrap();
+
+    std::fs::write(
+        localcheck.join("config.toml"),
+        r#"schema_version = "2"
+
+[history]
+max_entries = 5
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .output()
+        .expect("run command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let history_dir = localcheck.join("history");
+    assert!(history_dir.exists(), "history directory was not created");
+
+    let entries: Vec<_> = std::fs::read_dir(&history_dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .collect();
+    assert!(!entries.is_empty(), "no history entries were saved");
+
+    // Each entry directory should contain result.json
+    for e in &entries {
+        let result_json = e.path().join("result.json");
+        assert!(
+            result_json.exists(),
+            "result.json missing in {:?}",
+            e.path()
+        );
+        let content = std::fs::read_to_string(&result_json).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert!(v["timestamp"].is_string());
+        assert!(v["tools"].is_array());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: `rust-checker diff` command
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_diff_no_history_errors() {
+    let dir = temp_dir();
+    let localcheck = dir.path().join(".localcheck");
+    std::fs::create_dir_all(&localcheck).unwrap();
+    std::fs::write(localcheck.join("config.toml"), "schema_version = \"2\"\n").unwrap();
+
+    let out = Command::new(bin())
+        .args(["diff", "--dir"])
+        .arg(dir.path())
+        .output()
+        .expect("diff command");
+
+    assert!(!out.status.success(), "diff without history should fail");
+}
+
+#[test]
+fn test_diff_last_shows_trend() {
+    let dir = temp_dir();
+    let localcheck = dir.path().join(".localcheck");
+    let history_dir = localcheck.join("history");
+    std::fs::create_dir_all(&history_dir).unwrap();
+    std::fs::write(localcheck.join("config.toml"), "schema_version = \"2\"\n").unwrap();
+
+    // Create two fake history entries
+    for ts in &["20260101-100000", "20260101-110000"] {
+        let entry_dir = history_dir.join(ts);
+        std::fs::create_dir_all(&entry_dir).unwrap();
+        std::fs::write(
+            entry_dir.join("result.json"),
+            format!(
+                r#"{{"timestamp":"{ts}","tools":[{{"tool_name":"build","status":"ok","summary":"built"}}]}}"#
+            ),
+        )
+        .unwrap();
+    }
+
+    let out = Command::new(bin())
+        .args(["diff", "--dir"])
+        .arg(dir.path())
+        .args(["--last", "2"])
+        .output()
+        .expect("diff --last");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("趋势") || stdout.contains("20260101"));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: `rust-checker upgrade` command
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_upgrade_no_config_fails() {
+    let dir = temp_dir();
+    let out = Command::new(bin())
+        .args(["upgrade", "--dir"])
+        .arg(dir.path())
+        .output()
+        .expect("upgrade command");
+    assert!(!out.status.success(), "upgrade without config should fail");
+}
+
+#[test]
+fn test_upgrade_migrates_v1_config() {
+    let dir = temp_dir();
+    let localcheck = dir.path().join(".localcheck");
+    std::fs::create_dir_all(&localcheck).unwrap();
+    std::fs::write(
+        localcheck.join("config.toml"),
+        "schema_version = \"1\"\n\n[tools.build]\ndesc = \"build\"\nactive = true\ninput_command = \"cargo build\"\n",
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["upgrade", "--dir"])
+        .arg(dir.path())
+        .output()
+        .expect("upgrade command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let content = std::fs::read_to_string(localcheck.join("config.toml")).unwrap();
+    assert!(
+        content.contains("schema_version = \"2\""),
+        "schema_version not updated"
+    );
+    // Backup should exist
+    assert!(
+        localcheck.join("config.toml.bak").exists(),
+        "backup not created"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: `rust-checker plugin list` command
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_plugin_list_empty() {
+    let dir = temp_dir();
+    let out = Command::new(bin())
+        .args(["plugin", "list", "--dir"])
+        .arg(dir.path())
+        .output()
+        .expect("plugin list");
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("没有") || stdout.contains("安装"));
+}
+
+// ---------------------------------------------------------------------------
+// `rust-checker run --crate` reports go to workspace root .localcheck/
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_run_crate_mode_reports_go_to_workspace_root() {
+    let dir = temp_dir();
+    let workspace_root = dir.path();
+    let localcheck = workspace_root.join(".localcheck");
+    std::fs::create_dir_all(&localcheck).unwrap();
+
+    // Create a fake workspace with one member crate
+    let crate_dir = workspace_root.join("crates").join("my-lib");
+    std::fs::create_dir_all(&crate_dir).unwrap();
+    std::fs::write(
+        crate_dir.join("Cargo.toml"),
+        "[package]\nname = \"my-lib\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        workspace_root.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/*\"]\n",
+    )
+    .unwrap();
+
+    // Config at workspace root
+    std::fs::write(
+        localcheck.join("config.toml"),
+        r#"schema_version = "1"
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(workspace_root)
+        .args(["--crate", "my-lib"])
+        .output()
+        .expect("run --crate command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    // Reports must be written to the WORKSPACE root .localcheck/reports/, not to
+    // crates/my-lib/.localcheck/reports/
+    let report_path = localcheck.join("reports").join("summary.md");
+    assert!(
+        report_path.exists(),
+        "summary.md should be in workspace root .localcheck/, not in crate subdir"
+    );
+
+    // Crate subdir must NOT have a stray .localcheck/ directory
+    assert!(
+        !crate_dir.join(".localcheck").exists(),
+        "stray .localcheck/ found in crate directory"
+    );
+}
+
+#[test]
+fn test_plugin_remove_nonexistent_is_ok() {
+    let dir = temp_dir();
+    let out = Command::new(bin())
+        .args(["plugin", "remove", "nonexistent-plugin", "--dir"])
+        .arg(dir.path())
+        .output()
+        .expect("plugin remove");
+    assert!(out.status.success());
+}

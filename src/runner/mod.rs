@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use crate::config::{Config, ToolConfig};
+use crate::config::{Config, HistoryConfig, ToolConfig};
 use crate::logger::Logger;
 use crate::report::{write_summary, ReportFormat, ToolReport, ToolStatus};
 use crate::runner::dependency_check::{check_tool_available, get_tool_dep, prompt_and_install};
@@ -15,21 +15,40 @@ use crate::tools::parse_tool_output;
 
 pub struct Runner {
     config: Config,
+    working_dir: PathBuf,
     report_dir: PathBuf,
     log_dir: PathBuf,
+    history_dir: PathBuf,
     format: ReportFormat,
     ci_mode: bool,
 }
 
 impl Runner {
-    pub fn new(config: Config, base_dir: &Path, format: ReportFormat, ci_mode: bool) -> Self {
+    pub fn new(
+        config: Config,
+        project_dir: &Path,
+        working_dir: &Path,
+        format: ReportFormat,
+        ci_mode: bool,
+    ) -> Self {
         Runner {
             config,
-            report_dir: base_dir.join(".localcheck").join("reports"),
-            log_dir: base_dir.join(".localcheck").join("logs"),
+            working_dir: working_dir.to_path_buf(),
+            report_dir: project_dir.join(".localcheck").join("reports"),
+            log_dir: project_dir.join(".localcheck").join("logs"),
+            history_dir: project_dir.join(".localcheck").join("history"),
             format,
             ci_mode,
         }
+    }
+
+    /// Write a tool report (always markdown; also HTML when the run format is HTML).
+    fn write_report(&self, report: &ToolReport) -> Result<()> {
+        crate::report::markdown::write_tool_report(&self.report_dir, report)?;
+        if self.format == ReportFormat::Html {
+            crate::report::html::write_tool_report_html(&self.report_dir, report)?;
+        }
+        Ok(())
     }
 
     pub fn run(&self) -> Result<()> {
@@ -60,7 +79,9 @@ impl Runner {
 
             if !tool_cfg.active {
                 logger.log_tool_skipped(tool_name, "inactive")?;
-                reports.push(make_skipped_report(tool_name, tool_cfg, "工具已禁用"));
+                let report = make_skipped_report(tool_name, tool_cfg, "工具已禁用");
+                self.write_report(&report)?;
+                reports.push(report);
                 pb.inc(1);
                 continue;
             }
@@ -77,9 +98,7 @@ impl Runner {
                             .unwrap_or(false)
                             && reports
                                 .iter()
-                                .find(|r| &r.tool_name == *d)
-                                .map(|r| r.status == ToolStatus::Error)
-                                .unwrap_or(false)
+                                .any(|r| &r.tool_name == *d && r.status == ToolStatus::Error)
                     })
                     .cloned()
                     .collect();
@@ -87,7 +106,9 @@ impl Runner {
                 if !failed_deps.is_empty() {
                     let reason = format!("依赖失败: {}", failed_deps.join(", "));
                     logger.log_tool_skipped(tool_name, &reason)?;
-                    reports.push(make_skipped_report(tool_name, tool_cfg, &reason));
+                    let report = make_skipped_report(tool_name, tool_cfg, &reason);
+                    self.write_report(&report)?;
+                    reports.push(report);
                     pb.inc(1);
                     continue;
                 }
@@ -104,7 +125,9 @@ impl Runner {
                     if !installed {
                         let reason = format!("缺少依赖: {}", dep.binary);
                         logger.log_tool_skipped(tool_name, &reason)?;
-                        reports.push(make_skipped_report(tool_name, tool_cfg, &reason));
+                        let report = make_skipped_report(tool_name, tool_cfg, &reason);
+                        self.write_report(&report)?;
+                        reports.push(report);
                         pb.inc(1);
                         continue;
                     }
@@ -120,6 +143,9 @@ impl Runner {
 
             let output = std::process::Command::new(program)
                 .args(args)
+                // Run tools in the effective project directory (workspace member path
+                // when --crate is used, otherwise the project root).
+                .current_dir(&self.working_dir)
                 .output()
                 .with_context(|| format!("Failed to run: {cmd_str}"))?;
 
@@ -139,13 +165,7 @@ impl Runner {
                 report.output_path = op.clone();
             }
 
-            // Write markdown report
-            crate::report::markdown::write_tool_report(&self.report_dir, &report)?;
-
-            // Write HTML report if format is HTML
-            if self.format == ReportFormat::Html {
-                crate::report::html::write_tool_report_html(&self.report_dir, &report)?;
-            }
+            self.write_report(&report)?;
 
             logger.log_report_generated(&report.output_path)?;
             reports.push(report);
@@ -156,12 +176,28 @@ impl Runner {
 
         write_summary(&self.report_dir, &reports)?;
 
+        // Also write HTML summary when format is HTML
+        if self.format == ReportFormat::Html {
+            crate::report::html::write_summary_html(&self.report_dir, &reports)?;
+        }
+
         if self.ci_mode || self.format == ReportFormat::Json {
             let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string();
             let json = crate::report::json::build_ci_json(&reports, &timestamp);
             let json_path = self.report_dir.join("ci_result.json");
             std::fs::write(&json_path, serde_json::to_string_pretty(&json)?)?;
             println!("JSON: {}", json_path.display());
+        }
+
+        // Persist history snapshot
+        let max_entries = self
+            .config
+            .history
+            .as_ref()
+            .map(HistoryConfig::max_entries)
+            .unwrap_or(10);
+        if let Err(e) = crate::history::save_history(&reports, &self.history_dir, max_entries) {
+            eprintln!("⚠️  历史记录保存失败: {e}");
         }
 
         println!("\n✅ 检查完成，报告已生成: {}", self.report_dir.display());

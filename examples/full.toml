@@ -7,10 +7,20 @@
 #
 # 注意：部分工具需要额外安装（见各工具 desc），缺少依赖时会提示安装或跳过。
 
-schema_version = "1"
+schema_version = "2"
 
 [rust]
 rustflags = ""
+
+# 历史记录：每次 run 保留最近 20 条快照，用于 rust-checker diff 对比
+[history]
+max_entries = 20
+
+# Watch 模式配置：监听 src/ 变化，防抖 500ms，只重跑快速工具
+[watch]
+paths = ["src"]
+debounce_ms = 500
+tools = ["clippy", "fmt", "test"]
 
 # ──────────────────────────────────────────────────────────
 # 代码质量 → .localcheck/reports/quality/

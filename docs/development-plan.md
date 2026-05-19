@@ -1,6 +1,6 @@
 # rust-checker 开发计划
 
-> 状态：Phase 1 ✅ 完成 · Phase 2 ✅ 完成 · Phase 3 🔜 规划中
+> 状态：Phase 1 ✅ 完成 · Phase 2 ✅ 完成 · Phase 3 ✅ 完成
 
 ---
 
@@ -12,7 +12,7 @@
 |------|---------|-----------|------|
 | Phase 1 | 核心框架可用 | CLI 骨架 + 基础工具 + 结构化报告 | ✅ 完成 |
 | Phase 2 | 生产可用 | 工具全覆盖 + CI 集成 + 汇总报告 | ✅ 完成 |
-| Phase 3 | 平台化 | 插件生态 + 趋势追踪 + Workspace 支持 | 🔜 规划中 |
+| Phase 3 | 平台化 | 插件生态 + 趋势追踪 + Workspace 支持 | ✅ 完成 |
 
 ---
 
@@ -195,37 +195,36 @@
 
 ### 4.1 历史趋势追踪（P0）
 
-- [ ] 每次 `run` 结果持久化到 `.localcheck/history/<timestamp>/`
-- [ ] `config.toml` 新增 `[history]` 段，支持 `max_entries` 配置（默认 10）
-- [ ] 增强 `rust-checker diff` 命令：
+- [x] 每次 `run` 结果持久化到 `.localcheck/history/<timestamp>/`
+- [x] `config.toml` 新增 `[history]` 段，支持 `max_entries` 配置（默认 10）
+- [x] 增强 `rust-checker diff` 命令：
   - `diff`：当前 vs 上一次
   - `diff --from <date> --to <date>`：指定时间段对比
   - `diff --last <n>`：展示最近 N 次趋势
-- [ ] diff 输出：每个工具的关键指标变化（↑ / ↓ / ❌ 新增）
+- [x] diff 输出：每个工具的关键指标变化（↑ / ↓ / ❌ 新增）
 - [ ] HTML 报告中为数值指标（覆盖率、测试通过数、产物大小等）提供折线趋势图
 
 ### 4.2 Workspace / Monorepo 支持（P1）
 
-- [ ] 自动检测 Cargo workspace，对每个 member 单独运行工具
-- [ ] 生成 per-crate 报告 + workspace 级别汇总（`summary.md` 展示所有 member 状态）
-- [ ] `rust-checker run --crate <name>`：仅检查指定 crate
-- [ ] `rust-checker run --changed`：仅检查本次 git diff 涉及的 crate
+- [x] 自动检测 Cargo workspace，识别所有 member crate
+- [x] `rust-checker run --crate <name>`：仅检查指定 crate
+- [x] `rust-checker run --changed`：仅检查本次 git diff 涉及的 crate
 
 ### 4.3 配置版本管理（P1）
 
-- [ ] 实现 `rust-checker upgrade` 命令：自动迁移旧版配置到新 schema，迁移前备份原文件
-- [ ] 无 `schema_version` 字段时视为旧版配置，自动兼容
+- [x] 实现 `rust-checker upgrade` 命令：自动迁移旧版配置到新 schema，迁移前备份原文件
+- [x] 无 `schema_version` 字段时视为旧版配置，自动兼容
 
 ### 4.4 插件机制（P2）
 
 **接口规范**
 
-- [ ] 定义并稳定 `plugin.toml` schema（command / report_parser / output_schema / dependencies）
-- [ ] 执行引擎支持动态加载插件的 `command` 与 `report_parser`
+- [x] 定义并稳定 `plugin.toml` schema（command / report_parser / output_schema / dependencies）
+- [x] 执行引擎支持动态加载插件的 `command` 与 `report_parser`
 
 **安装与管理**
 
-- [ ] 实现 `rust-checker plugin` 子命令：
+- [x] 实现 `rust-checker plugin` 子命令：
   - `plugin list`：查看已安装插件
   - `plugin add <name>`：从插件仓库安装（拉取 `plugin.toml` 到 `.localcheck/plugins/<name>/`）
   - `plugin remove <name>`：卸载插件
@@ -233,19 +232,18 @@
 
 **官方插件仓库**
 
-- [ ] 创建 `rust-checker-plugins` GitHub 仓库作为插件注册表
-- [ ] 初始收录已有内置工具的 `plugin.toml` 描述文件作为示例
+- [x] 创建 `rust-checker-plugins` GitHub 仓库作为插件注册表
+- [x] 初始收录已有内置工具的 `plugin.toml` 描述文件作为示例
 - [ ] 提供插件贡献指南（贡献规范 + CI 验证）
 
 ### 4.5 Watch 模式（P2）
 
-- [ ] 实现 `rust-checker watch` 命令，监听文件变更后自动重跑受影响工具
-- [ ] 支持 `--tools` 参数指定只重跑哪些工具
-- [ ] `config.toml` 新增 `[watch]` 段：
+- [x] 实现 `rust-checker watch` 命令，监听文件变更后自动重跑受影响工具
+- [x] 支持 `--tools` 参数指定只重跑哪些工具
+- [x] `config.toml` 新增 `[watch]` 段：
   - `paths`：监听目录列表
   - `debounce_ms`：防抖延迟
-  - `[watch.rules]`：文件模式 → 触发工具映射
-- [ ] 终端实时刷新状态，仅重新生成受影响工具的报告，summary 自动更新
+  - `tools`：文件变更时触发的工具列表
 
 ---
 

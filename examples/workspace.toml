@@ -1,0 +1,41 @@
+# rust-checker Workspace 配置示例
+#
+# 适合：Cargo workspace / monorepo 项目。
+# 用法：
+#   rust-checker run --crate my-crate       # 只检查 my-crate
+#   rust-checker run --changed              # 只检查 git diff 涉及的 crate
+
+schema_version = "2"
+
+[rust]
+rustflags = ""
+
+[history]
+max_entries = 10
+
+# Watch 模式：监听 src/ 和 crates/ 的变更
+[watch]
+paths = ["src", "crates"]
+debounce_ms = 500
+tools = ["clippy", "fmt", "test"]
+
+[tools.build]
+desc = "构建项目"
+active = true
+input_command = "cargo build"
+
+[tools.test]
+desc = "运行单元测试与集成测试"
+active = true
+input_command = "cargo test"
+depends_on = ["build"]
+
+[tools.clippy]
+desc = "代码静态分析"
+active = true
+input_command = "cargo clippy -- -D warnings"
+
+[tools.fmt]
+desc = "代码格式检查"
+active = true
+input_command = "cargo fmt --check"

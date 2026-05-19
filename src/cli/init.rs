@@ -137,11 +137,15 @@ pub fn run_init(project_dir: &Path, preset: &str, force: bool) -> Result<()> {
 
     let tools = select_tools_by_preset(preset);
     let config = Config {
-        schema_version: Some("1".to_string()),
+        schema_version: Some("2".to_string()),
         rust: Some(RustConfig {
             version: None,
             rustflags: Some(String::new()),
         }),
+        history: Some(crate::config::HistoryConfig {
+            max_entries: Some(10),
+        }),
+        watch: None,
         tools,
     };
 
@@ -345,6 +349,6 @@ mod tests {
         let config_path = dir.path().join(".localcheck").join("config.toml");
         let content = std::fs::read_to_string(config_path).unwrap();
         let config: crate::config::Config = toml::from_str(&content).unwrap();
-        assert_eq!(config.schema_version.as_deref(), Some("1"));
+        assert_eq!(config.schema_version.as_deref(), Some("2"));
     }
 }

@@ -56,7 +56,7 @@ pub fn get_tool_dep(tool_name: &str) -> Option<ToolDep> {
         }),
         "flamegraph" => Some(ToolDep {
             binary: "cargo-flamegraph",
-            cargo_install: Some("cargo-flamegraph"),
+            cargo_install: Some("flamegraph"),
         }),
         _ => None,
     }
@@ -154,6 +154,15 @@ mod tests {
                 "expected install hint for {tool}"
             );
         }
+    }
+
+    #[test]
+    fn test_flamegraph_install_hint_uses_correct_crate_name() {
+        // The crate on crates.io is `flamegraph`, not `cargo-flamegraph`.
+        // The *binary* installed is `cargo-flamegraph`.
+        let dep = get_tool_dep("flamegraph").unwrap();
+        assert_eq!(dep.binary, "cargo-flamegraph");
+        assert_eq!(dep.cargo_install, Some("flamegraph"));
     }
 
     #[test]
