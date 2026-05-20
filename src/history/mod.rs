@@ -131,8 +131,8 @@ mod tests {
 
         for _ in 0..5 {
             save_history(&reports, &history_dir, 3).unwrap();
-            // Small sleep to get different timestamps in tests
-            std::thread::sleep(std::time::Duration::from_millis(10));
+            // Sleep >1 s so each iteration gets a distinct %Y%m%d-%H%M%S timestamp.
+            std::thread::sleep(std::time::Duration::from_millis(1100));
         }
 
         let entries = list_history_dirs(&history_dir).unwrap();

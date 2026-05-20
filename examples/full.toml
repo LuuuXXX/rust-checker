@@ -110,7 +110,7 @@ active = true
 input_command = "cargo semver-checks"
 
 [tools.binary]
-desc = "Release 二进制信息与 SHA-256"
+desc = "Release 二进制信息"
 active = true
 input_command = "cargo build --release"
 

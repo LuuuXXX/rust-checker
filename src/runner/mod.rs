@@ -140,6 +140,9 @@ impl Runner {
             let start = Instant::now();
 
             let cmd_str = &tool_cfg.input_command;
+            if cmd_str.trim().is_empty() {
+                bail!("tool '{tool_name}' has an empty input_command — check your config");
+            }
             let parts: Vec<&str> = cmd_str.split_whitespace().collect();
             let (program, args) = parts.split_first().unwrap_or((&"cargo", &[]));
 

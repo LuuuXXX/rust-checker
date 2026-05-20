@@ -6,8 +6,10 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     // Look for "TOTAL" line with percentage, e.g. "TOTAL  80.00%  120/150"
     let mut coverage_pct: Option<f64> = None;
     for line in combined.lines() {
-        let upper = line.to_uppercase();
-        if upper.contains("TOTAL") {
+        // Match only when the first whitespace-delimited token is exactly "TOTAL"
+        // to avoid false-positive matches on words like "subtotal".
+        let first_word = line.split_whitespace().next().unwrap_or("").to_uppercase();
+        if first_word == "TOTAL" {
             // Try to find a percentage value
             for part in line.split_whitespace() {
                 if part.ends_with('%') {
@@ -79,5 +81,23 @@ mod tests {
     fn test_parse_no_data() {
         let r = parse("", "", 0, "cargo llvm-cov");
         assert_eq!(r.status, ToolStatus::Ok);
+    }
+
+    #[test]
+    fn test_parse_coverage_subtotal_not_matched() {
+        // "subtotal" contains the substring "total" — must not be misidentified as the TOTAL line.
+        let stdout = "subtotal  100  50  50.00%";
+        let r = parse(stdout, "", 0, "cargo llvm-cov");
+        // No TOTAL line found → no percentage extracted → Ok (not Warn)
+        assert_eq!(
+            r.status,
+            ToolStatus::Ok,
+            "subtotal line must not set coverage %"
+        );
+        assert!(
+            !r.summary.contains('%'),
+            "summary must not contain a percentage for a subtotal line: {}",
+            r.summary
+        );
     }
 }
