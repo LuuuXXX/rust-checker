@@ -103,14 +103,15 @@ rust-checker init --dir /path/to/project --preset quality
 rust-checker run [OPTIONS]
 
 Options:
-  -d, --dir <DIR>          项目目录（默认当前目录）
-  -f, --format <FORMAT>    报告格式 [默认: markdown]
-                             markdown | html | json
-      --ci                 CI 模式：跳过交互提示，生成 ci_result.json
-      --only <TOOLS>       只运行指定工具（逗号分隔）
-      --crate <CRATE>      只检查指定 crate（Workspace 模式）
-      --changed            检测本次 git diff 是否有 crate 变更；无变更时跳过检查（Workspace 模式）
-  -h, --help               显示帮助信息
+  -d, --dir <DIR>              项目目录（默认当前目录）
+  -f, --format <FORMAT>        报告格式 [默认: markdown]
+                                 markdown | html | json
+      --ci                     CI 模式：跳过交互提示，生成 ci_result.json
+      --only <TOOLS>           只运行指定工具（逗号分隔）
+      --crate <CRATE>          只检查指定 crate（Workspace 模式）
+      --changed                检测本次 git diff 是否有 crate 变更；无变更时跳过检查（Workspace 模式）
+      --set-cmd <TOOL=CMD>     为特定工具覆盖执行命令（可重复）
+  -h, --help                   显示帮助信息
 ```
 
 **示例：**
@@ -133,6 +134,12 @@ rust-checker run --crate my-lib
 
 # Workspace：有 crate 变更时运行检查，无变更时跳过
 rust-checker run --changed
+
+# 为 clippy 使用更严格的参数
+rust-checker run --set-cmd clippy="cargo clippy -- -D warnings -W clippy::all"
+
+# 同时为多个工具覆盖命令
+rust-checker run --set-cmd build="cargo build --release" --set-cmd test="cargo test -- --nocapture"
 ```
 
 ---
@@ -308,26 +315,50 @@ input_command = "bash scripts/check.sh"
 
 ## 内置工具列表
 
-| 工具 | 命令 | 报告路径 | 需要安装 |
-|------|------|---------|---------|
-| `build` | `cargo build` | `quality/build.md` | — |
-| `test` | `cargo test` | `quality/test.md` | — |
-| `coverage` | `cargo llvm-cov` | `quality/coverage.md` | `cargo install cargo-llvm-cov` |
-| `clippy` | `cargo clippy` | `quality/clippy.md` | `rustup component add clippy` |
-| `fmt` | `cargo fmt --check` | `quality/fmt.md` | `rustup component add rustfmt` |
-| `doc` | `cargo doc --no-deps` | `quality/doc.md` | — |
-| `audit` | `cargo audit` | `security/audit.md` | `cargo install cargo-audit` |
-| `deny` | `cargo deny check` | `security/deny.md` | `cargo install cargo-deny` |
-| `geiger` | `cargo geiger` | `security/geiger.md` | `cargo install cargo-geiger` |
-| `metrics` | `cargo geiger --output-format Ratio` | `perf/metrics.md` | `cargo install cargo-geiger` |
-| `deps` | `cargo tree` | `deps/deps.md` | — |
-| `msrv` | `cargo msrv` | `compat/msrv.md` | `cargo install cargo-msrv` |
-| `semver` | `cargo semver-checks` | `compat/semver.md` | `cargo install cargo-semver-checks` |
-| `udeps` | `cargo +nightly udeps` | `deps/udeps.md` | `cargo install cargo-udeps` |
-| `bench` | `cargo bench` | `perf/bench.md` | — |
-| `bloat` | `cargo bloat --release` | `perf/bloat.md` | `cargo install cargo-bloat` |
-| `flamegraph` | `cargo flamegraph` | `perf/flamegraph.md` | `cargo install flamegraph` |
-| `binary` | `cargo build --release` | `compat/binary.md` | — |
+下表列出全部 18 个内置工具，并附有功能简介。
+
+### 代码质量（quality/）
+
+| 工具 | 命令 | 简介 | 报告路径 | 需要安装 |
+|------|------|------|---------|---------|
+| `build` | `cargo build` | 编译项目，验证代码可成功构建，输出产物信息和编译选项分析 | `quality/build.md` | — |
+| `test` | `cargo test` | 运行单元测试和集成测试，统计通过 / 失败 / 忽略用例数及总耗时 | `quality/test.md` | — |
+| `coverage` | `cargo llvm-cov` | 基于 LLVM 插桩统计代码覆盖率，输出文件级行覆盖率和总覆盖率 | `quality/coverage.md` | `cargo install cargo-llvm-cov` |
+| `clippy` | `cargo clippy -- -D warnings` | 运行官方 lint 工具，列出警告/错误详情（规则名 / 位置 / 建议）| `quality/clippy.md` | `rustup component add clippy` |
+| `fmt` | `cargo fmt --check` | 检查代码格式是否符合 `rustfmt` 规范，逐文件列出差异行数 | `quality/fmt.md` | `rustup component add rustfmt` |
+| `doc` | `cargo doc --no-deps` | 构建文档，统计警告/错误及公开 API 文档覆盖率 | `quality/doc.md` | — |
+
+### 安全（security/）
+
+| 工具 | 命令 | 简介 | 报告路径 | 需要安装 |
+|------|------|------|---------|---------|
+| `audit` | `cargo audit` | 扫描依赖树中的已知安全漏洞（对照 RustSec Advisory DB），按严重等级汇总 | `security/audit.md` | `cargo install cargo-audit` |
+| `deny` | `cargo deny check` | 检查许可证合规性、依赖白名单/黑名单策略，列出违规项 | `security/deny.md` | `cargo install cargo-deny` |
+| `geiger` | `cargo geiger` | 统计项目及所有依赖中的 `unsafe` 代码（fn / block / impl / trait），定位风险来源 | `security/geiger.md` | `cargo install cargo-geiger` |
+
+### 依赖分析（deps/）
+
+| 工具 | 命令 | 简介 | 报告路径 | 需要安装 |
+|------|------|------|---------|---------|
+| `deps` | `cargo tree` | 展示完整依赖树，统计总依赖数和重复依赖 | `deps/deps.md` | — |
+| `udeps` | `cargo +nightly udeps` | 检测 `Cargo.toml` 中声明但实际未使用的依赖，建议移除 | `deps/udeps.md` | `cargo install cargo-udeps` |
+
+### 性能（perf/）
+
+| 工具 | 命令 | 简介 | 报告路径 | 需要安装 |
+|------|------|------|---------|---------|
+| `metrics` | `cargo geiger --output-format Ratio` | 统计 unsafe 代码占比（按 Ratio 输出），用作代码质量度量指标 | `perf/metrics.md` | `cargo install cargo-geiger` |
+| `bench` | `cargo bench` | 运行基准测试，输出各基准项的平均耗时、标准差和吞吐量 | `perf/bench.md` | — |
+| `bloat` | `cargo bloat --release` | 分析 Release 二进制体积，列出贡献最大的 crate 和函数（Top-N） | `perf/bloat.md` | `cargo install cargo-bloat` |
+| `flamegraph` | `cargo flamegraph` | 生成 CPU 性能火焰图（Linux 需 `perf`，macOS 需 `DTrace`） | `perf/flamegraph.md` | `cargo install flamegraph` |
+
+### 兼容性（compat/）
+
+| 工具 | 命令 | 简介 | 报告路径 | 需要安装 |
+|------|------|------|---------|---------|
+| `msrv` | `cargo msrv` | 验证项目真实最低支持 Rust 版本（MSRV），与 `Cargo.toml` 中声明值比对 | `compat/msrv.md` | `cargo install cargo-msrv` |
+| `semver` | `cargo semver-checks` | 检测公开 API 的破坏性变更（SemVer 违规），辅助版本号决策 | `compat/semver.md` | `cargo install cargo-semver-checks` |
+| `binary` | `cargo build --release` | 构建 Release 二进制，记录产物大小、SHA-256 和构建环境信息 | `compat/binary.md` | — |
 
 ---
 

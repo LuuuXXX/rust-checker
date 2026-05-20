@@ -58,6 +58,11 @@ enum Commands {
         /// 只在本次 git diff 有 crate 变更时运行检查（Workspace 模式；无变更时跳过）
         #[arg(long)]
         changed: bool,
+
+        /// 为特定工具覆盖执行命令（格式：TOOL=CMD，可重复使用）
+        /// 例如：--set-cmd clippy="cargo clippy -- -W clippy::all"
+        #[arg(long = "set-cmd", value_name = "TOOL=CMD")]
+        set_cmd: Option<Vec<String>>,
     },
 
     /// 查看两次检查结果的差异或历史趋势
@@ -147,13 +152,14 @@ fn main() -> anyhow::Result<()> {
             only,
             crate_name,
             changed,
+            set_cmd,
         } => {
             let report_format = match format.as_str() {
                 "html" => ReportFormat::Html,
                 "json" => ReportFormat::Json,
                 _ => ReportFormat::Markdown,
             };
-            cli::run::run_check_full(&dir, report_format, ci, only, crate_name, changed)?;
+            cli::run::run_check_full(&dir, report_format, ci, only, crate_name, changed, set_cmd)?;
         }
 
         Commands::Diff {
