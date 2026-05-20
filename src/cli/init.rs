@@ -334,7 +334,7 @@ mod tests {
     }
 
     #[test]
-    fn test_run_init_creates_localcheck_dir() {
+    fn test_run_init_creates_rust_checker_dir() {
         let dir = tempfile::tempdir().unwrap();
         let localcheck_dir = dir.path().join(".rust-checker");
         assert!(!localcheck_dir.exists());
