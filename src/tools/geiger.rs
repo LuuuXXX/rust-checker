@@ -106,4 +106,18 @@ mod tests {
             r.summary
         );
     }
+
+    #[test]
+    fn test_geiger_multi_unsafe_functions_lines_no_total() {
+        // Old cargo-geiger versions emit one "unsafe functions: N" line per crate
+        // without a final Total row.  All values should be accumulated.
+        let stdout = "unsafe functions: 3\nunsafe functions: 4\n(no Total row in this old format)";
+        let r = parse(stdout, "", 0, "cargo geiger");
+        assert_eq!(r.status, ToolStatus::Warn);
+        assert!(
+            r.summary.contains("7"),
+            "multi-line unsafe functions must be summed (expected 7): {}",
+            r.summary
+        );
+    }
 }

@@ -54,7 +54,7 @@ rust-checker run
 # 4. 查看汇总报告
 cat .rust-checker/reports/summary.md
 
-# 5. 对比上次与本次结果（Phase 3）
+# 5. 对比上次与本次结果
 rust-checker diff
 ```
 
@@ -267,12 +267,12 @@ schema_version = "2"
 version = "1.75.0"
 rustflags = ""
 
-# 历史记录配置（Phase 3 新增）
+# 历史记录配置（可选）
 # 每次 run 自动保存快照到 .rust-checker/history/，超出 max_entries 后自动清理
 [history]
 max_entries = 10
 
-# Watch 模式配置（Phase 3 新增，可选）
+# Watch 模式配置（可选）
 # rust-checker watch 使用此配置
 [watch]
 paths       = ["src"]     # 监听目录列表
@@ -371,7 +371,7 @@ input_command = "bash scripts/check.sh"
 ├── config.toml
 ├── logs/
 │   └── 20260518-143200.log        # 执行日志（含工具链环境信息）
-├── history/                       # 历史快照（Phase 3）
+├── history/                       # 历史快照
 │   └── 20260518-143200/
 │       └── result.json            # 该次运行的工具结果
 └── reports/

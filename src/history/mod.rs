@@ -127,18 +127,24 @@ mod tests {
     fn test_history_prune_keeps_max_entries() {
         let dir = tempfile::tempdir().unwrap();
         let history_dir = dir.path().join("history");
-        let reports = vec![make_report("build", ToolStatus::Ok)];
+        std::fs::create_dir_all(&history_dir).unwrap();
 
-        for _ in 0..5 {
-            save_history(&reports, &history_dir, 3).unwrap();
-            // Sleep >1 s so each iteration gets a distinct %Y%m%d-%H%M%S timestamp.
-            std::thread::sleep(std::time::Duration::from_millis(1100));
+        // Pre-create 5 synthetic entries directly (no real-clock timestamps needed).
+        let json = r#"{"timestamp":"T","tools":[]}"#;
+        for i in 0..5u32 {
+            let entry_dir = history_dir.join(format!("20260101-{:06}", i));
+            std::fs::create_dir_all(&entry_dir).unwrap();
+            std::fs::write(entry_dir.join("result.json"), json).unwrap();
         }
+
+        // save_history creates one more entry and then prunes to max_entries=3.
+        let reports = vec![make_report("build", ToolStatus::Ok)];
+        save_history(&reports, &history_dir, 3).unwrap();
 
         let entries = list_history_dirs(&history_dir).unwrap();
         assert!(
             entries.len() <= 3,
-            "expected <= 3 entries, got {}",
+            "expected <= 3 entries after prune, got {}",
             entries.len()
         );
     }

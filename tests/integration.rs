@@ -480,8 +480,12 @@ fn test_diff_last_shows_trend() {
 
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
-        stdout.contains("趋势") && stdout.contains("20260101"),
-        "expected trend output with timestamp, got: {stdout}"
+        stdout.contains("趋势"),
+        "expected trend output, got: {stdout}"
+    );
+    assert!(
+        stdout.contains("20260101"),
+        "expected timestamp in trend output, got: {stdout}"
     );
 }
 
