@@ -13,7 +13,11 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         .count();
     let error_count = combined
         .lines()
-        .filter(|l| l.contains("error:") && !l.contains("aborting due to"))
+        .filter(|l| {
+            l.contains("error:")
+                && !l.contains("aborting due to")
+                && !l.contains("could not compile")
+        })
         .count();
 
     let status = if error_count > 0 || exit_code != 0 {
@@ -97,5 +101,23 @@ mod tests {
         let stderr = "error: expected identifier\nerror: aborting due to 1 previous error";
         let r = parse("", stderr, 1, "cargo clippy");
         assert_eq!(r.status, ToolStatus::Error);
+    }
+
+    #[test]
+    fn test_clippy_errors_excludes_could_not_compile_line() {
+        // "error: could not compile `foo`" is a rustc trailing summary line, not a diagnostic.
+        let stderr = "error: unused import\nerror: could not compile `foo` due to 1 previous error";
+        let r = parse("", stderr, 1, "cargo clippy");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "expected 1 error (not 2) in: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("2"),
+            "summary must not report 2 errors: {}",
+            r.summary
+        );
     }
 }

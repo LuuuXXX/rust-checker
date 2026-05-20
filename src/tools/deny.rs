@@ -6,7 +6,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     // cargo deny outputs "error[" lines for denies
     let error_count = combined
         .lines()
-        .filter(|l| l.contains("error[") || (l.starts_with("error") && !l.contains("warning")))
+        .filter(|l| l.contains("error[") || (l.starts_with("error:") && !l.contains("warning")))
         .count();
 
     let warning_count = combined.lines().filter(|l| l.contains("warning[")).count();
@@ -70,5 +70,17 @@ mod tests {
         let stderr = "error[denied]: crate 'openssl' is denied";
         let r = parse("", stderr, 1, "cargo deny check");
         assert_eq!(r.status, ToolStatus::Error);
+    }
+
+    #[test]
+    fn test_deny_error_filter_not_too_broad() {
+        // Lines that start with "error" but aren't "error:" diagnostics must not be counted.
+        let stdout = "error-prone pattern detected\nerrors in policy file";
+        let r = parse(stdout, "", 0, "cargo deny check");
+        assert_eq!(
+            r.status,
+            ToolStatus::Ok,
+            "non-diagnostic lines starting with 'error' must not trigger Error status"
+        );
     }
 }

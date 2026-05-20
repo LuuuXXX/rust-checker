@@ -73,8 +73,8 @@ fn status_rank(s: &str) -> i8 {
     match s {
         "ok" => 2,
         "warn" => 1,
-        "error" => 0,
-        _ => -1, // skipped / unknown
+        "error" | "skipped" => 0,
+        _ => -1, // unknown
     }
 }
 
@@ -343,5 +343,22 @@ mod tests {
     fn test_change_indicator_removed_tool() {
         let indicator = change_indicator(Some("ok"), None);
         assert_eq!(indicator, "🗑️ 移除");
+    }
+
+    #[test]
+    fn test_change_indicator_ok_to_skipped_is_regression() {
+        // skipped ranks the same as error — going from ok to skipped is a regression
+        let indicator = change_indicator(Some("ok"), Some("skipped"));
+        assert_eq!(indicator, "↓ 劣化");
+    }
+
+    #[test]
+    fn test_change_indicator_error_to_skipped_is_neutral() {
+        // skipped and error have the same rank → no change in direction
+        let indicator = change_indicator(Some("error"), Some("skipped"));
+        assert_eq!(
+            indicator, "↓ 劣化",
+            "error→skipped should not show as improvement"
+        );
     }
 }

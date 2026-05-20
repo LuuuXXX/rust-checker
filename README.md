@@ -326,7 +326,7 @@ input_command = "bash scripts/check.sh"
 | `coverage` | `cargo llvm-cov` | 基于 LLVM 插桩统计代码覆盖率，输出文件级行覆盖率和总覆盖率 | `quality/coverage.md` | `cargo install cargo-llvm-cov` |
 | `clippy` | `cargo clippy -- -D warnings` | 运行官方 lint 工具，列出警告/错误详情（规则名 / 位置 / 建议）| `quality/clippy.md` | `rustup component add clippy` |
 | `fmt` | `cargo fmt --check` | 检查代码格式是否符合 `rustfmt` 规范，逐文件列出差异行数 | `quality/fmt.md` | `rustup component add rustfmt` |
-| `doc` | `cargo doc --no-deps` | 构建文档，统计警告/错误及公开 API 文档覆盖率 | `quality/doc.md` | — |
+| `doc` | `cargo doc --no-deps` | 构建文档，统计 rustdoc 警告数量 | `quality/doc.md` | — |
 
 ### 安全（security/）
 
@@ -358,7 +358,7 @@ input_command = "bash scripts/check.sh"
 |------|------|------|---------|---------|
 | `msrv` | `cargo msrv` | 验证项目真实最低支持 Rust 版本（MSRV），与 `Cargo.toml` 中声明值比对 | `compat/msrv.md` | `cargo install cargo-msrv` |
 | `semver` | `cargo semver-checks` | 检测公开 API 的破坏性变更（SemVer 违规），辅助版本号决策 | `compat/semver.md` | `cargo install cargo-semver-checks` |
-| `binary` | `cargo build --release` | 构建 Release 二进制，记录产物大小、SHA-256 和构建环境信息 | `compat/binary.md` | — |
+| `binary` | `cargo build --release` | 构建 Release 二进制，记录产物路径和构建环境信息 | `compat/binary.md` | — |
 
 ---
 
@@ -406,7 +406,7 @@ input_command = "bash scripts/check.sh"
 
 ## CI 集成
 
-`rust-checker` 始终以**零退出码**退出，不干涉 CI/CD 流水线。CI 脚本通过读取 `ci_result.json` 自行决定是否阻断流水线。
+`rust-checker` 的工具执行结果**不影响退出码**，不干涉 CI/CD 流水线——工具失败只体现在报告状态中。配置文件缺失或解析失败等初始化错误仍会以非零退出码退出。CI 脚本通过读取 `ci_result.json` 自行决定是否阻断流水线。
 
 ### GitHub Actions 示例
 

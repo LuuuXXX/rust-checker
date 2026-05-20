@@ -3,7 +3,14 @@ use crate::report::{ToolReport, ToolStatus};
 pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolReport {
     let combined = format!("{}\n{}", stdout, stderr);
 
-    let warning_count = combined.lines().filter(|l| l.contains("warning:")).count();
+    let warning_count = combined
+        .lines()
+        .filter(|l| {
+            l.contains("warning:")
+                && !l.contains("warning emitted")
+                && !l.contains("warnings emitted")
+        })
+        .count();
 
     let status = if exit_code != 0 {
         ToolStatus::Error
@@ -58,5 +65,23 @@ mod tests {
         );
         assert_eq!(r.status, ToolStatus::Warn);
         assert!(r.summary.contains("警告"));
+    }
+
+    #[test]
+    fn test_doc_warning_excludes_emitted_summary_line() {
+        // "N warnings emitted" is a rustdoc trailing summary — must not be counted as an extra warning.
+        let stderr = "warning: missing documentation for struct `Foo`\nwarning: 1 warning emitted";
+        let r = parse("", stderr, 0, "cargo doc --no-deps");
+        assert_eq!(r.status, ToolStatus::Warn);
+        assert!(
+            r.summary.contains("1"),
+            "expected 1 warning in: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("2"),
+            "summary must not report 2 warnings: {}",
+            r.summary
+        );
     }
 }
