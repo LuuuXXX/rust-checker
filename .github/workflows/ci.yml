@@ -128,13 +128,13 @@ jobs:
           ls .rust-checker/history/
           find .rust-checker/history -name "result.json" | head -1 | xargs cat
 
-      - name: rust-checker diff --last 1 (Phase 3)
+      - name: rust-checker diff --last 1
         run: ./target/debug/rust-checker diff --last 1
 
-      - name: rust-checker upgrade (Phase 3 - already v2, should be no-op)
+      - name: rust-checker upgrade (already v2, should be no-op)
         run: ./target/debug/rust-checker upgrade
 
-      - name: rust-checker plugin list (Phase 3)
+      - name: rust-checker plugin list
         run: ./target/debug/rust-checker plugin list
 
       - name: Upload reports as artifact
