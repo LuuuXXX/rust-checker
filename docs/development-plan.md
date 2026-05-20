@@ -25,13 +25,13 @@
 
 ### 2.1 目录与配置规范
 
-- [x] 确定 `.localcheck/` 目录结构（config / logs / reports）
+- [x] 确定 `.rust-checker/` 目录结构（config / logs / reports）
 - [x] 实现 `config.toml` 解析（工具列表、激活状态、命令、输出路径）
 - [x] 支持内置工具自动填充 `output_path`，自定义工具自动分配 `customs/<name>.md` 路径
 
 ### 2.2 `rust-checker init` 命令
 
-- [x] 检测 `.localcheck/config.toml` 是否已存在，存在则 `--force` 才覆盖
+- [x] 检测 `.rust-checker/config.toml` 是否已存在，存在则 `--force` 才覆盖
 - [x] 实现 `--preset minimal / quality / security / full` 四档预设
   - `minimal`：build + test + clippy + fmt
   - `quality`：build + test + coverage + clippy + fmt + doc
@@ -45,10 +45,10 @@
 - [x] 运行依赖预检：启动前逐一检查工具依赖是否满足
   - [x] 有 cargo 安装方案 → 打印命令并询问是否自动安装
   - [x] 无已知方案 → 提示工具为可选并跳过
-- [x] 创建 `.localcheck/reports/` 与 `.localcheck/logs/` 目录
+- [x] 创建 `.rust-checker/reports/` 与 `.rust-checker/logs/` 目录
 - [x] 内置工具按标准模板解析输出，生成结构化报告
 - [x] 自定义工具捕获原始输出，存为 `customs/<name>.md`
-- [x] 汇总日志写入 `.localcheck/logs/<YYYYMMDD-HHMMSS>.log`
+- [x] 汇总日志写入 `.rust-checker/logs/<YYYYMMDD-HHMMSS>.log`
 
 ### 2.4 报告格式支持
 
@@ -129,7 +129,7 @@
 ### 3.4 报告目录结构重组
 
 ```
-.localcheck/
+.rust-checker/
 ├── config.toml
 ├── logs/
 │   └── <timestamp>.log
@@ -195,7 +195,7 @@
 
 ### 4.1 历史趋势追踪（P0）
 
-- [x] 每次 `run` 结果持久化到 `.localcheck/history/<timestamp>/`
+- [x] 每次 `run` 结果持久化到 `.rust-checker/history/<timestamp>/`
 - [x] `config.toml` 新增 `[history]` 段，支持 `max_entries` 配置（默认 10）
 - [x] 增强 `rust-checker diff` 命令：
   - `diff`：当前 vs 上一次
@@ -226,7 +226,7 @@
 
 - [x] 实现 `rust-checker plugin` 子命令：
   - `plugin list`：查看已安装插件
-  - `plugin add <name>`：从插件仓库安装（拉取 `plugin.toml` 到 `.localcheck/plugins/<name>/`）
+  - `plugin add <name>`：从插件仓库安装（拉取 `plugin.toml` 到 `.rust-checker/plugins/<name>/`）
   - `plugin remove <name>`：卸载插件
   - `plugin update`：更新所有插件
 
@@ -336,13 +336,13 @@
 
 ### 2.1 目录与配置规范
 
-- [ ] 确定 `.localcheck/` 目录结构（config / logs / report / history / plugins）
+- [ ] 确定 `.rust-checker/` 目录结构（config / logs / report / history / plugins）
 - [ ] 实现 `config.toml` 解析（工具列表、激活状态、命令、输出路径）
 - [ ] 支持内置工具自动填充 `output_path`，自定义工具自动分配 `customs_<name>` 前缀
 
 ### 2.2 `rust-checker init` 命令
 
-- [ ] 检测 `.localcheck/config.toml` 是否已存在，存在则询问是否覆盖
+- [ ] 检测 `.rust-checker/config.toml` 是否已存在，存在则询问是否覆盖
 - [ ] 提供交互式引导：默认配置 vs 自定义配置
 - [ ] 实现 `--preset minimal / standard / full` 三档预设
   - `minimal`：build + test
@@ -357,10 +357,10 @@
   - 有 cargo 安装方案 → 打印命令并询问是否自动安装
   - 需手动操作（系统包）→ 打印平台对应安装命令（apt / brew / winget）
   - 无已知方案 → 提示工具为可选并跳过
-- [ ] 创建 `.localcheck/report/` 与 `.localcheck/logs/` 目录
+- [ ] 创建 `.rust-checker/report/` 与 `.rust-checker/logs/` 目录
 - [ ] 内置工具按标准模板解析输出，生成结构化报告
 - [ ] 自定义工具捕获原始输出，存为 `customs_<name>.<ext>`
-- [ ] 汇总日志写入 `.localcheck/logs/<YYYYMMDD-HHMMSS>.log`
+- [ ] 汇总日志写入 `.rust-checker/logs/<YYYYMMDD-HHMMSS>.log`
 
 ### 2.4 报告格式支持
 
@@ -441,7 +441,7 @@
 ### 3.4 报告目录结构重组
 
 ```
-.localcheck/
+.rust-checker/
 ├── config.toml
 ├── logs/
 │   └── <timestamp>.log
@@ -499,7 +499,7 @@
 
 ### 4.1 历史趋势追踪（P0）
 
-- [ ] 每次 `run` 结果持久化到 `.localcheck/history/<timestamp>/`
+- [ ] 每次 `run` 结果持久化到 `.rust-checker/history/<timestamp>/`
 - [ ] `config.toml` 新增 `[history]` 段，支持 `max_entries` 配置（默认 10）
 - [ ] 增强 `rust-checker diff` 命令：
   - `diff`：当前 vs 上一次
@@ -532,7 +532,7 @@
 
 - [ ] 实现 `rust-checker plugin` 子命令：
   - `plugin list`：查看已安装插件
-  - `plugin add <name>`：从插件仓库安装（拉取 `plugin.toml` 到 `.localcheck/plugins/<name>/`）
+  - `plugin add <name>`：从插件仓库安装（拉取 `plugin.toml` 到 `.rust-checker/plugins/<name>/`）
   - `plugin remove <name>`：卸载插件
   - `plugin update`：更新所有插件
 

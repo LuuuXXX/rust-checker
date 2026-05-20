@@ -52,9 +52,9 @@ impl PluginToml {
 
 // ─── directory helpers ───────────────────────────────────────────────────────
 
-/// Return the plugins directory for a project: `.localcheck/plugins`.
+/// Return the plugins directory for a project: `.rust-checker/plugins`.
 pub fn plugins_dir(project_dir: &Path) -> PathBuf {
-    project_dir.join(".localcheck").join("plugins")
+    project_dir.join(".rust-checker").join("plugins")
 }
 
 // ─── install / remove / list / update ────────────────────────────────────────

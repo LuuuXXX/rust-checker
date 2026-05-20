@@ -4,11 +4,11 @@ use std::path::Path;
 /// Current schema version.
 pub const CURRENT_SCHEMA_VERSION: &str = "2";
 
-/// Upgrade `.localcheck/config.toml` to the latest schema version.
+/// Upgrade `.rust-checker/config.toml` to the latest schema version.
 ///
 /// Before migrating the file is backed up to `config.toml.bak`.
 pub fn upgrade_config(project_dir: &Path) -> Result<()> {
-    let config_path = project_dir.join(".localcheck").join("config.toml");
+    let config_path = project_dir.join(".rust-checker").join("config.toml");
 
     if !config_path.exists() {
         anyhow::bail!(
@@ -104,7 +104,7 @@ mod tests {
     use std::io::Write;
 
     fn write_config(dir: &Path, content: &str) {
-        let lc = dir.join(".localcheck");
+        let lc = dir.join(".rust-checker");
         std::fs::create_dir_all(&lc).unwrap();
         let mut f = std::fs::File::create(lc.join("config.toml")).unwrap();
         write!(f, "{}", content).unwrap();
@@ -153,13 +153,13 @@ mod tests {
         upgrade_config(dir.path()).unwrap();
 
         let after =
-            std::fs::read_to_string(dir.path().join(".localcheck").join("config.toml")).unwrap();
+            std::fs::read_to_string(dir.path().join(".rust-checker").join("config.toml")).unwrap();
         // File should be unchanged
         assert!(after.contains(CURRENT_SCHEMA_VERSION));
         // No backup created
         assert!(!dir
             .path()
-            .join(".localcheck")
+            .join(".rust-checker")
             .join("config.toml.bak")
             .exists());
     }
@@ -176,7 +176,7 @@ mod tests {
 
         assert!(dir
             .path()
-            .join(".localcheck")
+            .join(".rust-checker")
             .join("config.toml.bak")
             .exists());
     }
@@ -192,7 +192,7 @@ mod tests {
         upgrade_config(dir.path()).unwrap();
 
         let after =
-            std::fs::read_to_string(dir.path().join(".localcheck").join("config.toml")).unwrap();
+            std::fs::read_to_string(dir.path().join(".rust-checker").join("config.toml")).unwrap();
         assert!(
             after.contains(&format!("schema_version = \"{CURRENT_SCHEMA_VERSION}\"")),
             "expected v{CURRENT_SCHEMA_VERSION} in:\n{after}"

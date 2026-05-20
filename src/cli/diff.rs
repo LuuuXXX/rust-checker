@@ -14,7 +14,7 @@ pub enum DiffMode {
 }
 
 pub fn run_diff(project_dir: &Path, mode: DiffMode) -> Result<()> {
-    let history_base = project_dir.join(".localcheck").join("history");
+    let history_base = project_dir.join(".rust-checker").join("history");
 
     let dirs = list_history_dirs(&history_base)?;
     if dirs.is_empty() {

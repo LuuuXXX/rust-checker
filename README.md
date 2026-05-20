@@ -6,7 +6,7 @@
 
 ## 特性
 
-- 🔧 **配置驱动**：所有行为由 `.localcheck/config.toml` 统一管理
+- 🔧 **配置驱动**：所有行为由 `.rust-checker/config.toml` 统一管理
 - 🔁 **串行执行**：按声明顺序依次运行，结果确定可重现
 - 🔗 **依赖感知**：通过 `depends_on` 声明工具间执行顺序
 - 🩺 **依赖预检**：启动前逐一检查工具依赖，自动提示安装
@@ -52,7 +52,7 @@ rust-checker init --preset quality
 rust-checker run
 
 # 4. 查看汇总报告
-cat .localcheck/reports/summary.md
+cat .rust-checker/reports/summary.md
 
 # 5. 对比上次与本次结果（Phase 3）
 rust-checker diff
@@ -64,7 +64,7 @@ rust-checker diff
 
 ### `rust-checker init`
 
-初始化 `.localcheck/config.toml` 配置文件。
+初始化 `.rust-checker/config.toml` 配置文件。
 
 ```
 rust-checker init [OPTIONS]
@@ -228,7 +228,7 @@ rust-checker watch --tools clippy,fmt
 
 ### `rust-checker upgrade`
 
-将 `.localcheck/config.toml` 从旧 schema 迁移到最新版本，迁移前自动备份原文件。
+将 `.rust-checker/config.toml` 从旧 schema 迁移到最新版本，迁移前自动备份原文件。
 
 ```
 rust-checker upgrade [OPTIONS]
@@ -249,7 +249,7 @@ rust-checker upgrade
 
 ## 配置文件格式
 
-配置文件位于 `.localcheck/config.toml`，当前 schema 版本为 `"2"`。
+配置文件位于 `.rust-checker/config.toml`，当前 schema 版本为 `"2"`。
 
 ```toml
 # 配置 schema 版本（当前为 "2"，run 自动生成；upgrade 命令可迁移旧版）
@@ -261,7 +261,7 @@ version = "1.75.0"
 rustflags = ""
 
 # 历史记录配置（Phase 3 新增）
-# 每次 run 自动保存快照到 .localcheck/history/，超出 max_entries 后自动清理
+# 每次 run 自动保存快照到 .rust-checker/history/，超出 max_entries 后自动清理
 [history]
 max_entries = 10
 
@@ -336,7 +336,7 @@ input_command = "bash scripts/check.sh"
 执行 `rust-checker run` 后生成如下结构：
 
 ```
-.localcheck/
+.rust-checker/
 ├── config.toml
 ├── logs/
 │   └── 20260518-143200.log        # 执行日志（含工具链环境信息）
@@ -405,7 +405,7 @@ jobs:
 
       - name: Check for errors
         run: |
-          ERROR_COUNT=$(jq '.summary.error' .localcheck/reports/ci_result.json)
+          ERROR_COUNT=$(jq '.summary.error' .rust-checker/reports/ci_result.json)
           if [ "$ERROR_COUNT" -gt 0 ]; then
             echo "❌ $ERROR_COUNT tool(s) failed"
             exit 1
@@ -416,7 +416,7 @@ jobs:
         if: always()
         with:
           name: quality-reports
-          path: .localcheck/reports/
+          path: .rust-checker/reports/
 ```
 
 ### ci_result.json 格式
@@ -454,7 +454,7 @@ jobs:
 使用示例配置：
 
 ```bash
-cp examples/standard.toml .localcheck/config.toml
+cp examples/standard.toml .rust-checker/config.toml
 rust-checker run
 ```
 

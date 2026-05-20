@@ -1,4 +1,4 @@
 /target/
-.localcheck/logs/
-.localcheck/reports/
+.rust-checker/logs/
+.rust-checker/reports/
 Cargo.lock

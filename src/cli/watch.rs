@@ -4,7 +4,7 @@ use std::path::Path;
 use crate::watch::{build_options, watch};
 
 pub fn run_watch(project_dir: &Path, tools: Option<Vec<String>>) -> Result<()> {
-    let config_path = project_dir.join(".localcheck").join("config.toml");
+    let config_path = project_dir.join(".rust-checker").join("config.toml");
 
     if !config_path.exists() {
         anyhow::bail!(

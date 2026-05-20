@@ -34,9 +34,9 @@ impl Runner {
         Runner {
             config,
             working_dir: working_dir.to_path_buf(),
-            report_dir: project_dir.join(".localcheck").join("reports"),
-            log_dir: project_dir.join(".localcheck").join("logs"),
-            history_dir: project_dir.join(".localcheck").join("history"),
+            report_dir: project_dir.join(".rust-checker").join("reports"),
+            log_dir: project_dir.join(".rust-checker").join("logs"),
+            history_dir: project_dir.join(".rust-checker").join("history"),
             format,
             ci_mode,
         }

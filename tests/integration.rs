@@ -80,7 +80,7 @@ fn test_init_creates_config_file() {
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert!(dir.path().join(".localcheck").join("config.toml").exists());
+    assert!(dir.path().join(".rust-checker").join("config.toml").exists());
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn test_init_minimal_preset_content() {
         .expect("run init");
 
     let content =
-        std::fs::read_to_string(dir.path().join(".localcheck").join("config.toml")).unwrap();
+        std::fs::read_to_string(dir.path().join(".rust-checker").join("config.toml")).unwrap();
     assert!(content.contains("build"));
     assert!(content.contains("test"));
     assert!(content.contains("clippy"));
@@ -112,7 +112,7 @@ fn test_init_full_preset_has_all_tools() {
         .expect("run init");
 
     let content =
-        std::fs::read_to_string(dir.path().join(".localcheck").join("config.toml")).unwrap();
+        std::fs::read_to_string(dir.path().join(".rust-checker").join("config.toml")).unwrap();
     // Spot-check several tools from all categories
     for tool in &[
         "build", "test", "clippy", "audit", "geiger", "msrv", "bloat", "bench",
@@ -133,7 +133,7 @@ fn test_init_no_overwrite_without_force() {
         .expect("first init");
 
     // Overwrite with custom marker
-    let config_path = dir.path().join(".localcheck").join("config.toml");
+    let config_path = dir.path().join(".rust-checker").join("config.toml");
     std::fs::write(&config_path, "# sentinel_marker\n").unwrap();
 
     // Second init without --force should NOT overwrite
@@ -163,7 +163,7 @@ fn test_init_force_flag_overwrites() {
         .expect("first init");
 
     // Overwrite with sentinel
-    let config_path = dir.path().join(".localcheck").join("config.toml");
+    let config_path = dir.path().join(".rust-checker").join("config.toml");
     std::fs::write(&config_path, "# sentinel_marker\n").unwrap();
 
     // Second init WITH --force should overwrite
@@ -206,7 +206,7 @@ fn test_run_fails_without_config() {
 #[test]
 fn test_run_empty_tools_config_errors() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
+    let localcheck = dir.path().join(".rust-checker");
     std::fs::create_dir_all(&localcheck).unwrap();
     // Config with no tools
     std::fs::write(
@@ -232,7 +232,7 @@ version = "1.75.0"
 #[test]
 fn test_run_ci_mode_creates_json() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
+    let localcheck = dir.path().join(".rust-checker");
     std::fs::create_dir_all(&localcheck).unwrap();
 
     // Config with one inactive tool (so it skips immediately without running cargo)
@@ -275,7 +275,7 @@ input_command = "cargo build"
 #[test]
 fn test_run_generates_summary_md() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
+    let localcheck = dir.path().join(".rust-checker");
     std::fs::create_dir_all(&localcheck).unwrap();
 
     // Config with one inactive tool
@@ -316,7 +316,7 @@ input_command = "cargo build"
 #[test]
 fn test_run_inactive_tool_report_file_is_written() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
+    let localcheck = dir.path().join(".rust-checker");
     std::fs::create_dir_all(&localcheck).unwrap();
 
     std::fs::write(
@@ -363,7 +363,7 @@ input_command = "cargo build"
 #[test]
 fn test_run_creates_history_entry() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
+    let localcheck = dir.path().join(".rust-checker");
     std::fs::create_dir_all(&localcheck).unwrap();
 
     std::fs::write(
@@ -424,7 +424,7 @@ input_command = "cargo build"
 #[test]
 fn test_diff_no_history_errors() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
+    let localcheck = dir.path().join(".rust-checker");
     std::fs::create_dir_all(&localcheck).unwrap();
     std::fs::write(localcheck.join("config.toml"), "schema_version = \"2\"\n").unwrap();
 
@@ -440,7 +440,7 @@ fn test_diff_no_history_errors() {
 #[test]
 fn test_diff_last_shows_trend() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
+    let localcheck = dir.path().join(".rust-checker");
     let history_dir = localcheck.join("history");
     std::fs::create_dir_all(&history_dir).unwrap();
     std::fs::write(localcheck.join("config.toml"), "schema_version = \"2\"\n").unwrap();
@@ -493,7 +493,7 @@ fn test_upgrade_no_config_fails() {
 #[test]
 fn test_upgrade_migrates_v1_config() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
+    let localcheck = dir.path().join(".rust-checker");
     std::fs::create_dir_all(&localcheck).unwrap();
     std::fs::write(
         localcheck.join("config.toml"),
@@ -547,14 +547,14 @@ fn test_plugin_list_empty() {
 }
 
 // ---------------------------------------------------------------------------
-// `rust-checker run --crate` reports go to workspace root .localcheck/
+// `rust-checker run --crate` reports go to workspace root .rust-checker/
 // ---------------------------------------------------------------------------
 
 #[test]
 fn test_run_crate_mode_reports_go_to_workspace_root() {
     let dir = temp_dir();
     let workspace_root = dir.path();
-    let localcheck = workspace_root.join(".localcheck");
+    let localcheck = workspace_root.join(".rust-checker");
     std::fs::create_dir_all(&localcheck).unwrap();
 
     // Create a fake workspace with one member crate
@@ -597,18 +597,18 @@ input_command = "cargo build"
         String::from_utf8_lossy(&out.stderr)
     );
 
-    // Reports must be written to the WORKSPACE root .localcheck/reports/, not to
-    // crates/my-lib/.localcheck/reports/
+    // Reports must be written to the WORKSPACE root .rust-checker/reports/, not to
+    // crates/my-lib/.rust-checker/reports/
     let report_path = localcheck.join("reports").join("summary.md");
     assert!(
         report_path.exists(),
-        "summary.md should be in workspace root .localcheck/, not in crate subdir"
+        "summary.md should be in workspace root .rust-checker/, not in crate subdir"
     );
 
-    // Crate subdir must NOT have a stray .localcheck/ directory
+    // Crate subdir must NOT have a stray .rust-checker/ directory
     assert!(
-        !crate_dir.join(".localcheck").exists(),
-        "stray .localcheck/ found in crate directory"
+        !crate_dir.join(".rust-checker").exists(),
+        "stray .rust-checker/ found in crate directory"
     );
 }
 
