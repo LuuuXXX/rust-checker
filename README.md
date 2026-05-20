@@ -259,7 +259,7 @@ rust-checker upgrade
 配置文件位于 `.rust-checker/config.toml`，当前 schema 版本为 `"2"`。
 
 ```toml
-# 配置 schema 版本（当前为 "2"，run 自动生成；upgrade 命令可迁移旧版）
+# 配置 schema 版本（当前为 "2"，init 自动生成；upgrade 命令可迁移旧版）
 schema_version = "2"
 
 # Rust 工具链配置（可选）
@@ -467,8 +467,8 @@ jobs:
     { "tool": "test",     "status": "ok",      "summary": "通过: 42，失败: 0，忽略: 0", "output_path": "quality/test.md" },
     { "tool": "clippy",   "status": "warn",    "summary": "3 个警告",        "output_path": "quality/clippy.md" },
     { "tool": "fmt",      "status": "ok",      "summary": "无问题",          "output_path": "quality/fmt.md" },
-    { "tool": "coverage", "status": "ok",      "summary": "覆盖率: 87.5%",  "output_path": "quality/coverage.md" },
-    { "tool": "doc",      "status": "skipped", "summary": "缺少依赖: cargo", "output_path": "quality/doc.md" }
+    { "tool": "doc",      "status": "ok",      "summary": "构建成功",        "output_path": "quality/doc.md" },
+    { "tool": "coverage", "status": "skipped", "summary": "缺少依赖: cargo-llvm-cov", "output_path": "quality/coverage.md" }
   ]
 }
 ```

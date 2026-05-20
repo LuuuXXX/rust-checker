@@ -96,9 +96,11 @@ impl Runner {
                             .get(d.as_str())
                             .map(|tc| tc.active)
                             .unwrap_or(false)
-                            && reports
-                                .iter()
-                                .any(|r| &r.tool_name == *d && r.status == ToolStatus::Error)
+                            && reports.iter().any(|r| {
+                                &r.tool_name == *d
+                                    && (r.status == ToolStatus::Error
+                                        || r.status == ToolStatus::Skipped)
+                            })
                     })
                     .cloned()
                     .collect();

@@ -82,13 +82,25 @@ pub fn build_options(
 ) -> WatchOptions {
     let (paths, debounce_ms, tools) = match watch_cfg {
         Some(cfg) => {
-            let paths: Vec<PathBuf> = cfg
+            let configured_paths: Vec<PathBuf> = cfg
                 .paths
                 .as_deref()
                 .unwrap_or(&[])
                 .iter()
                 .map(|p| project_dir.join(p))
                 .collect();
+            // Fall back to the same default as the None branch when no paths are configured
+            let paths = if configured_paths.is_empty() {
+                let src = project_dir.join("src");
+                let default_path = if src.exists() {
+                    src
+                } else {
+                    project_dir.to_path_buf()
+                };
+                vec![default_path]
+            } else {
+                configured_paths
+            };
             let debounce_ms = cfg.debounce_ms();
             let tools = cfg.tools.clone();
             (paths, debounce_ms, tools)
@@ -122,6 +134,40 @@ mod tests {
         let opts = build_options(None, dir.path());
         assert_eq!(opts.debounce_ms, 500);
         assert!(opts.tools.is_none());
+    }
+
+    #[test]
+    fn test_build_options_with_config_no_paths_falls_back_to_default() {
+        // [watch] section present but paths = None → should fall back to src/ (or project root)
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = crate::config::WatchConfig {
+            paths: None,
+            debounce_ms: Some(200),
+            tools: None,
+        };
+        let opts = build_options(Some(&cfg), dir.path());
+        // paths must not be empty (would cause bail! in watch())
+        assert!(
+            !opts.paths.is_empty(),
+            "paths should not be empty when not configured"
+        );
+        assert_eq!(opts.debounce_ms, 200);
+    }
+
+    #[test]
+    fn test_build_options_with_config_empty_paths_falls_back_to_default() {
+        // [watch] section present with explicit empty paths → should fall back to src/ (or project root)
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = crate::config::WatchConfig {
+            paths: Some(vec![]),
+            debounce_ms: None,
+            tools: None,
+        };
+        let opts = build_options(Some(&cfg), dir.path());
+        assert!(
+            !opts.paths.is_empty(),
+            "paths should not be empty when configured as []"
+        );
     }
 
     #[test]

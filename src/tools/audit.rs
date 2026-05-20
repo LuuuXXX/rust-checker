@@ -51,10 +51,15 @@ fn count_vulnerabilities(output: &str) -> usize {
                 }
             }
         }
-        // "error[" lines indicate vulnerabilities in text mode
-        if line.contains("error[") && line.contains("RUSTSEC") {
-            return 1; // at least one
-        }
+    }
+
+    // Count individual "error[RUSTSEC-...]" lines as a fallback for text-mode output
+    let rustsec_count = output
+        .lines()
+        .filter(|l| l.contains("error[") && l.contains("RUSTSEC"))
+        .count();
+    if rustsec_count > 0 {
+        return rustsec_count;
     }
 
     // Check for JSON vulnerability count
@@ -109,6 +114,21 @@ mod tests {
         assert!(
             r.summary.contains("2"),
             "expected vuln count in: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_audit_multiple_rustsec_text_mode() {
+        // Three separate RUSTSEC error lines should be counted individually, not as 1.
+        let stderr = "error[RUSTSEC-2022-0001]: vuln A\n\
+                      error[RUSTSEC-2022-0002]: vuln B\n\
+                      error[RUSTSEC-2022-0003]: vuln C";
+        let r = parse("", stderr, 1, "cargo audit");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("3"),
+            "expected 3 vulns in: {}",
             r.summary
         );
     }

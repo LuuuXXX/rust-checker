@@ -12,7 +12,14 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         .lines()
         .filter(|l| l.contains("error[") || l.starts_with("error:"))
         .count();
-    let warning_count = combined.lines().filter(|l| l.contains("warning:")).count();
+    let warning_count = combined
+        .lines()
+        .filter(|l| {
+            l.contains("warning:")
+                && !l.contains("warning emitted")
+                && !l.contains("warnings emitted")
+        })
+        .count();
 
     let summary = if exit_code == 0 {
         if warning_count > 0 {

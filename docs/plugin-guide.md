@@ -29,7 +29,7 @@ tags        = ["license", "deny"]  # 可选：标签列表
 program = "cargo"           # 可执行程序名
 args    = ["deny", "check"] # 参数列表
 
-# 可选：环境变量
+# 可选：环境变量（暂未实现，当前版本运行时不会应用）
 # [command.env]
 # RUSTFLAGS = "-D warnings"
 
@@ -51,8 +51,8 @@ output_path = "security/deny.md"    # 报告输出路径（相对于 .rust-check
 | `plugin.tags` | array | ❌ | 辅助搜索的标签 |
 | `command.program` | string | ✅ | 可执行文件名（PATH 中可找到的命令） |
 | `command.args` | array | ✅ | 命令参数列表 |
-| `command.env` | table | ❌ | 额外的环境变量 |
-| `report.parser` | string | ✅ | 输出解析器（见下方说明） |
+| `command.env` | table | ❌ | 额外的环境变量（**暂未实现**：字段已解析保存但当前运行时不会应用到进程，留作未来扩展） |
+| `report.parser` | string | ✅ | 输出解析器（见下方说明；**暂未实现**：当前版本所有插件统一使用通用解析器，此字段仅保存于 plugin.toml，供未来版本使用） |
 | `report.output_path` | string | ✅ | 报告保存路径（相对于 reports/） |
 
 ### category 枚举
@@ -68,19 +68,19 @@ output_path = "security/deny.md"    # 报告输出路径（相对于 .rust-check
 
 ### report.parser 说明
 
-`parser` 字段告知 `rust-checker` 如何解析工具输出、生成结构化报告。目前支持：
+> **注意**：`parser` 字段在当前版本中尚未实现路由功能。所有插件均使用通用解析器（等效于 `builtin::generic`）：stdout/stderr 原始输出以文本形式保存到报告。此字段已写入 `plugin.toml` 以便未来版本激活对应解析器，填写时请参照下方表格选择最接近的值。
+
+`parser` 字段声明该工具输出应如何解析。未来支持的值：
 
 | parser 值 | 适用场景 |
 |-----------|---------|
 | `builtin::build` | 解析 `cargo build` 输出 |
 | `builtin::test` | 解析 `cargo test` 输出 |
-| `builtin::clippy` | 解析 `cargo clippy` JSON 输出 |
+| `builtin::clippy` | 解析 `cargo clippy` 输出 |
 | `builtin::fmt` | 解析 `cargo fmt --check` 输出 |
 | `builtin::audit` | 解析 `cargo audit` 输出 |
 | `builtin::deny` | 解析 `cargo deny check` 输出 |
-| `builtin::generic` | 通用解析器：捕获 stdout/stderr 原始输出 |
-
-若无匹配的内置解析器，使用 `builtin::generic`，输出将以原始文本保存到报告中。
+| `builtin::generic` | 通用解析器：捕获 stdout/stderr 原始输出（当前版本所有插件实际行为） |
 
 ---
 
