@@ -5,7 +5,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
 
     // Look for FAILED or passed in output
     let has_failed = combined.lines().any(|l| {
-        l.contains("FAILED") || (l.contains("semver violations") && !l.contains("no semver"))
+        l.contains("FAILED") || (l.contains("semver violation") && !l.contains("no semver"))
     });
     let has_passed = combined
         .lines()
@@ -24,7 +24,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let failed_line_count = combined.lines().filter(|l| l.contains("FAILED")).count();
     let summary_count: usize = combined
         .lines()
-        .find(|l| l.contains("semver violations") && !l.contains("no semver"))
+        .find(|l| l.contains("semver violation") && !l.contains("no semver"))
         .and_then(|l| l.split_whitespace().find_map(|p| p.parse().ok()))
         .unwrap_or(0);
     let violation_count = if failed_line_count > 0 {
@@ -117,6 +117,19 @@ mod tests {
         assert!(
             r.summary.contains("3"),
             "violation count from summary line must be reported: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_semver_singular_violation() {
+        // cargo semver-checks emits "1 semver violation found" (singular) for exactly one break.
+        let stdout = "Checking foo v0.1.0\n1 semver violation found";
+        let r = parse(stdout, "", 1, "cargo semver-checks");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "singular 'semver violation' must be detected and counted: {}",
             r.summary
         );
     }

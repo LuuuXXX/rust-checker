@@ -14,7 +14,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let error_count = combined
         .lines()
         .filter(|l| {
-            l.contains("error:")
+            (l.contains("error[") || l.contains("error:"))
                 && !l.contains("aborting due to")
                 && !l.contains("could not compile")
         })
@@ -101,6 +101,28 @@ mod tests {
         let stderr = "error: expected identifier\nerror: aborting due to 1 previous error";
         let r = parse("", stderr, 1, "cargo clippy");
         assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "error count must appear in summary: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_clippy_error_bracket_format() {
+        // rustc emits "error[E0382]: use of moved value" — must be counted as an error.
+        let stderr = "error[E0382]: use of moved value\nerror: aborting due to 1 previous error";
+        let r = parse("", stderr, 1, "cargo clippy");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "bracket-form error must appear in summary: {}",
+            r.summary
+        );
+        assert_ne!(
+            r.summary, "无问题",
+            "summary must not say '无问题' when errors exist"
+        );
     }
 
     #[test]

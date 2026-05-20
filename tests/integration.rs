@@ -673,10 +673,19 @@ fn test_diff_latest_with_two_entries() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    // Diff output should mention at least one of the tools
+    // Diff output must identify the regressing tool and both timestamps.
     assert!(
-        stdout.contains("build") || stdout.contains("test") || stdout.contains("20260101"),
-        "expected diff content, got: {stdout}"
+        stdout.contains("test"),
+        "diff must mention the regressing tool 'test': {stdout}"
+    );
+    assert!(
+        stdout.contains("20260101"),
+        "diff must include the timestamp: {stdout}"
+    );
+    // The regression: test went from ok → error; look for an indicator of degradation.
+    assert!(
+        stdout.contains("error") || stdout.contains("↓") || stdout.contains("劣化"),
+        "diff must indicate a regression: {stdout}"
     );
 }
 

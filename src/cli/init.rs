@@ -245,6 +245,14 @@ mod tests {
     fn test_select_tools_full() {
         let tools = select_tools_by_preset("full");
         assert_eq!(tools.len(), ALL_TOOLS.len());
+        // Spot-check that the correct tools are present (not just the count).
+        for preset in ALL_TOOLS {
+            assert!(
+                tools.contains_key(preset.name),
+                "full preset must include tool '{}'",
+                preset.name
+            );
+        }
     }
 
     #[test]
