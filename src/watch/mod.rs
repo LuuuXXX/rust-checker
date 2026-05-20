@@ -89,7 +89,8 @@ pub fn build_options(
                 .iter()
                 .map(|p| project_dir.join(p))
                 .collect();
-            // Fall back to the same default as the None branch when no paths are configured
+            // Fall back to the same default as the None branch to avoid an opaque error
+            // in watch() when [watch] is present but paths is absent or explicitly empty.
             let paths = if configured_paths.is_empty() {
                 let src = project_dir.join("src");
                 let default_path = if src.exists() {
