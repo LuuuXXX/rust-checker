@@ -84,8 +84,12 @@ fn change_indicator(old: Option<&str>, new: Option<&str>) -> &'static str {
         (Some(_), None) => "🗑️ 移除",
         (Some(o), Some(n)) if o == n => "→",
         (Some(o), Some(n)) => {
-            if status_rank(n) > status_rank(o) {
+            let old_rank = status_rank(o);
+            let new_rank = status_rank(n);
+            if new_rank > old_rank {
                 "↑ 改善"
+            } else if new_rank == old_rank {
+                "→" // different status but equivalent severity (e.g. error ↔ skipped)
             } else {
                 "↓ 劣化"
             }
@@ -354,11 +358,8 @@ mod tests {
 
     #[test]
     fn test_change_indicator_error_to_skipped_is_neutral() {
-        // skipped and error have the same rank → no change in direction
+        // error and skipped have the same rank → neutral ("→"), not a regression
         let indicator = change_indicator(Some("error"), Some("skipped"));
-        assert_eq!(
-            indicator, "↓ 劣化",
-            "error→skipped should not show as improvement"
-        );
+        assert_eq!(indicator, "→");
     }
 }
