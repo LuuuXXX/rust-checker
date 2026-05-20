@@ -6,7 +6,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     // cargo deny outputs "error[" lines for denies
     let error_count = combined
         .lines()
-        .filter(|l| l.contains("error[") || (l.starts_with("error:") && !l.contains("warning")))
+        .filter(|l| l.contains("error[") || l.starts_with("error:"))
         .count();
 
     let warning_count = combined.lines().filter(|l| l.contains("warning[")).count();
@@ -81,6 +81,18 @@ mod tests {
             r.status,
             ToolStatus::Ok,
             "non-diagnostic lines starting with 'error' must not trigger Error status"
+        );
+    }
+
+    #[test]
+    fn test_deny_error_with_warning_in_message_not_suppressed() {
+        // "error: warning configuration …" — starts_with("error:") so must be counted.
+        let stderr = "error: warning configuration is not supported for this lint";
+        let r = parse("", stderr, 1, "cargo deny check");
+        assert_eq!(
+            r.status,
+            ToolStatus::Error,
+            "'error: warning …' line must not be silently suppressed"
         );
     }
 }

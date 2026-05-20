@@ -18,15 +18,27 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
                 || lower.contains("mib")
                 || lower.contains("bytes"))
         {
-            // Extract size info
+            // Extract size info — real cargo bloat uses KiB/MiB; also accept plain KB/MB/B/bytes
             for part in line.split_whitespace() {
                 if part.ends_with("KiB")
                     || part.ends_with("MiB")
                     || part.ends_with("KB")
                     || part.ends_with("MB")
                     || part.ends_with('B')
+                    || part.to_lowercase() == "bytes"
                 {
-                    total_size = Some(part.to_string());
+                    // For a bare "bytes" token, grab the preceding numeric token as the size.
+                    if part.to_lowercase() == "bytes" {
+                        // We re-scan the line to pick up "N bytes" where N is the previous token.
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if let Some(pos) = parts.iter().position(|p| p.to_lowercase() == "bytes") {
+                            if pos > 0 && parts[pos - 1].parse::<u64>().is_ok() {
+                                total_size = Some(format!("{} bytes", parts[pos - 1]));
+                            }
+                        }
+                    } else {
+                        total_size = Some(part.to_string());
+                    }
                     break;
                 }
             }
@@ -96,5 +108,18 @@ mod tests {
     fn test_bloat_fail() {
         let r = parse("", "error: failed", 1, "cargo bloat");
         assert_eq!(r.status, ToolStatus::Error);
+    }
+
+    #[test]
+    fn test_bloat_bytes_format() {
+        // "N bytes" (space-separated) must also be recognised.
+        let stdout = " File  .text   Size          Crate Name\n  1.0%  1.2%   128 bytes          foo f\n File size: 1024 bytes";
+        let r = parse(stdout, "", 0, "cargo bloat");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains("bytes"),
+            "space-separated bytes size must appear in summary: {}",
+            r.summary
+        );
     }
 }

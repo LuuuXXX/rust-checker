@@ -17,9 +17,21 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         ToolStatus::Ok
     };
 
-    // Count violation count if present — only count primary "FAILED" lines;
-    // context lines such as "This constitutes a semver violation:" must not be counted.
-    let violation_count = combined.lines().filter(|l| l.contains("FAILED")).count();
+    // Count violations:
+    // 1. Primary "FAILED" lines (one per API break in verbose output).
+    // 2. Summary line "N semver violations found" when individual FAILED lines are absent
+    //    (some versions / invocations only emit the summary).
+    let failed_line_count = combined.lines().filter(|l| l.contains("FAILED")).count();
+    let summary_count: usize = combined
+        .lines()
+        .find(|l| l.contains("semver violations") && !l.contains("no semver"))
+        .and_then(|l| l.split_whitespace().find_map(|p| p.parse().ok()))
+        .unwrap_or(0);
+    let violation_count = if failed_line_count > 0 {
+        failed_line_count
+    } else {
+        summary_count
+    };
 
     let summary = if has_failed || exit_code != 0 {
         if violation_count > 0 {
@@ -93,5 +105,19 @@ mod tests {
     fn test_semver_empty() {
         let r = parse("", "", 0, "cargo semver-checks");
         assert_eq!(r.status, ToolStatus::Ok);
+    }
+
+    #[test]
+    fn test_semver_summary_line_count() {
+        // Some versions of cargo semver-checks only emit a summary line like
+        // "3 semver violations found" without individual FAILED: lines.
+        let stdout = "Checking foo v0.1.0\n3 semver violations found";
+        let r = parse(stdout, "", 1, "cargo semver-checks");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("3"),
+            "violation count from summary line must be reported: {}",
+            r.summary
+        );
     }
 }
