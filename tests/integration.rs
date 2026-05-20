@@ -208,7 +208,7 @@ fn test_run_fails_without_config() {
 }
 
 #[test]
-fn test_run_empty_tools_config_errors() {
+fn test_run_unknown_tool_in_only_flag_errors() {
     let dir = temp_dir();
     let rust_checker = dir.path().join(".rust-checker");
     std::fs::create_dir_all(&rust_checker).unwrap();
@@ -479,7 +479,10 @@ fn test_diff_last_shows_trend() {
     );
 
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("趋势") || stdout.contains("20260101"));
+    assert!(
+        stdout.contains("趋势") && stdout.contains("20260101"),
+        "expected trend output with timestamp, got: {stdout}"
+    );
 }
 
 // ---------------------------------------------------------------------------

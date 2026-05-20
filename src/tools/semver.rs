@@ -17,11 +17,9 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         ToolStatus::Ok
     };
 
-    // Count violation count if present
-    let violation_count = combined
-        .lines()
-        .filter(|l| l.contains("FAILED") || l.contains("violation"))
-        .count();
+    // Count violation count if present — only count primary "FAILED" lines;
+    // context lines such as "This constitutes a semver violation:" must not be counted.
+    let violation_count = combined.lines().filter(|l| l.contains("FAILED")).count();
 
     let summary = if has_failed || exit_code != 0 {
         if violation_count > 0 {
@@ -68,6 +66,27 @@ mod tests {
         let stdout = "FAILED: removed public function `bar`";
         let r = parse(stdout, "", 1, "cargo semver-checks");
         assert_eq!(r.status, ToolStatus::Error);
+    }
+
+    #[test]
+    fn test_semver_failed_multiline_context_not_inflated() {
+        // A single violation spans multiple lines in real semver-checks output.
+        // Context lines containing "violation" must not inflate the count.
+        let stdout = "FAILED: removed public function `bar`\n  \
+            This constitutes a semver violation: public items must not be removed.\n  \
+            API: src/lib.rs:42";
+        let r = parse(stdout, "", 1, "cargo semver-checks");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "single violation must report 1, not inflated: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains('2') && !r.summary.contains('3'),
+            "violation count must not be inflated by context lines: {}",
+            r.summary
+        );
     }
 
     #[test]

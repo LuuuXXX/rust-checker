@@ -17,8 +17,8 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
             unsafe_count = numbers.iter().sum();
             break;
         }
-        // Also look for "unsafe functions:" pattern
-        if lower.contains("unsafe functions:") || lower.contains("unsafe") {
+        // Also look for "unsafe functions:" pattern (older geiger versions)
+        if lower.contains("unsafe functions:") {
             for part in line.split_whitespace() {
                 if let Ok(n) = part.parse::<usize>() {
                     unsafe_count = unsafe_count.saturating_add(n);

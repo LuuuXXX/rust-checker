@@ -10,12 +10,22 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
 
     for line in combined.lines() {
         let lower = line.to_lowercase();
+        // real cargo bloat uses KiB/MiB (kibibyte units); also accept plain KB/MB/B
         if lower.contains("file")
-            && (lower.contains("kb") || lower.contains("mb") || lower.contains("bytes"))
+            && (lower.contains("kb")
+                || lower.contains("kib")
+                || lower.contains("mb")
+                || lower.contains("mib")
+                || lower.contains("bytes"))
         {
             // Extract size info
             for part in line.split_whitespace() {
-                if part.ends_with("KB") || part.ends_with("MB") || part.ends_with('B') {
+                if part.ends_with("KiB")
+                    || part.ends_with("MiB")
+                    || part.ends_with("KB")
+                    || part.ends_with("MB")
+                    || part.ends_with('B')
+                {
                     total_size = Some(part.to_string());
                     break;
                 }
@@ -67,6 +77,19 @@ mod tests {
         let stdout = " File  .text   Size          Crate Name\n  2.3%  2.5%  1.0KB          foo bar_fn\n File size: 45KB";
         let r = parse(stdout, "", 0, "cargo bloat");
         assert_eq!(r.status, ToolStatus::Ok);
+    }
+
+    #[test]
+    fn test_bloat_kib_format() {
+        // Real cargo bloat uses KiB/MiB units (kibibytes), not plain KB/MB.
+        let stdout = " 10.2%  11.0%  1.2KiB          my_crate foo_fn\n File .text size: 512KiB";
+        let r = parse(stdout, "", 0, "cargo bloat");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains("KiB"),
+            "KiB size must appear in summary: {}",
+            r.summary
+        );
     }
 
     #[test]

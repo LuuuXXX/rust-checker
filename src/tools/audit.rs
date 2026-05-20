@@ -4,7 +4,9 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let combined = format!("{}\n{}", stdout, stderr);
 
     // cargo audit outputs JSON or text. Look for vulnerability indicators.
-    let vuln_count = count_vulnerabilities(&combined);
+    // The JSON branch must use only stdout; stderr often contains progress output
+    // (e.g. "Fetching advisory database") that invalidates a combined parse.
+    let vuln_count = count_vulnerabilities(stdout, &combined);
 
     let status = if exit_code != 0 || vuln_count > 0 {
         ToolStatus::Error
@@ -40,9 +42,9 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     }
 }
 
-fn count_vulnerabilities(output: &str) -> usize {
+fn count_vulnerabilities(stdout: &str, combined: &str) -> usize {
     // Try to find "Vulnerabilities found: N"
-    for line in output.lines() {
+    for line in combined.lines() {
         let lower = line.to_lowercase();
         if lower.contains("vulnerabilities found") || lower.contains("vulnerability found") {
             for part in line.split_whitespace() {
@@ -54,7 +56,7 @@ fn count_vulnerabilities(output: &str) -> usize {
     }
 
     // Count individual "error[RUSTSEC-...]" lines as a fallback for text-mode output
-    let rustsec_count = output
+    let rustsec_count = combined
         .lines()
         .filter(|l| l.contains("error[") && l.contains("RUSTSEC"))
         .count();
@@ -62,8 +64,9 @@ fn count_vulnerabilities(output: &str) -> usize {
         return rustsec_count;
     }
 
-    // Check for JSON vulnerability count
-    if let Ok(json) = serde_json::from_str::<serde_json::Value>(output) {
+    // Check for JSON vulnerability count — use only stdout because stderr may contain
+    // progress output (e.g. "Fetching advisory database") that invalidates a combined parse.
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(stdout) {
         if let Some(count) = json
             .get("vulnerabilities")
             .and_then(|v| v.get("count"))
@@ -138,5 +141,21 @@ mod tests {
         let json = r#"{"vulnerabilities":{"count":0,"list":[]},"warnings":{}}"#;
         let r = parse(json, "", 0, "cargo audit --json");
         assert_eq!(r.status, ToolStatus::Ok);
+    }
+
+    #[test]
+    fn test_audit_json_with_stderr_progress_lines() {
+        // cargo audit --json emits progress messages to stderr (e.g. "Fetching advisory
+        // database from ..."). Mixing them into the parse string makes it invalid JSON.
+        // The JSON branch must parse stdout only.
+        let json = r#"{"vulnerabilities":{"count":1,"list":[]},"warnings":{}}"#;
+        let stderr = "Fetching advisory database from `https://github.com/RustSec/advisory-db.git`\nLoaded 500 security advisories";
+        let r = parse(json, stderr, 1, "cargo audit --json");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "JSON vuln count must survive non-empty stderr: {}",
+            r.summary
+        );
     }
 }
