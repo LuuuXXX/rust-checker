@@ -348,7 +348,10 @@ input_command = "cargo build"
     );
 
     // The skipped tool report file must exist so summary.md links are valid
-    let report_path = rust_checker.join("reports").join("quality").join("build.md");
+    let report_path = rust_checker
+        .join("reports")
+        .join("quality")
+        .join("build.md");
     assert!(
         report_path.exists(),
         "skipped tool report quality/build.md not found"
