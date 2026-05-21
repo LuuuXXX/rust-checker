@@ -34,10 +34,10 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
 
     let markdown_content = format!(
         "# Deny\n\n**命令**: `{command}`\n\n**状态**: {}\n\n**摘要**: {}\n\n## 输出\n\n```\n{}\n```\n",
-        if exit_code == 0 && error_count == 0 {
-            "✅ 通过"
-        } else {
-            "❌ 违规"
+        match status {
+            ToolStatus::Ok => "✅ 通过",
+            ToolStatus::Warn => "⚠️ 警告",
+            _ => "❌ 违规",
         },
         summary,
         combined.trim()
@@ -109,6 +109,23 @@ mod tests {
             r.status,
             ToolStatus::Error,
             "'error: warning …' line must not be silently suppressed"
+        );
+    }
+
+    #[test]
+    fn test_deny_warn_markdown_shows_warning_status() {
+        // When status is Warn, the markdown header must show "⚠️ 警告", not "✅ 通过".
+        let stderr = "warning: configuration file not found";
+        let r = parse("", stderr, 0, "cargo deny check");
+        assert_eq!(r.status, ToolStatus::Warn);
+        assert!(
+            r.markdown_content.contains("⚠️ 警告"),
+            "markdown must show ⚠️ 警告 for Warn status: {}",
+            r.markdown_content
+        );
+        assert!(
+            !r.markdown_content.contains("✅ 通过"),
+            "markdown must not show ✅ 通过 for Warn status"
         );
     }
 }

@@ -42,7 +42,11 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
 
     let markdown_content = format!(
         "# Coverage\n\n**命令**: `{command}`\n\n**状态**: {}\n\n**摘要**: {}\n\n## 输出\n\n```\n{}\n```\n",
-        if exit_code == 0 { "✅ 成功" } else { "❌ 失败" },
+        match status {
+            ToolStatus::Ok => "✅ 成功",
+            ToolStatus::Warn => "⚠️ 警告",
+            _ => "❌ 失败",
+        },
         summary,
         combined.trim()
     );
@@ -84,8 +88,24 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_coverage_warn_markdown_shows_warning_status() {
+        // When coverage is below threshold, the markdown header must show "⚠️ 警告", not "✅ 成功".
+        let stdout = "TOTAL  100  50  50.00%";
+        let r = parse(stdout, "", 0, "cargo llvm-cov");
+        assert_eq!(r.status, ToolStatus::Warn);
+        assert!(
+            r.markdown_content.contains("⚠️ 警告"),
+            "markdown must show ⚠️ 警告 for Warn status: {}",
+            r.markdown_content
+        );
+        assert!(
+            !r.markdown_content.contains("✅ 成功"),
+            "markdown must not show ✅ 成功 for Warn status"
+        );
+    }
+
+    #[test]
     fn test_parse_coverage_subtotal_not_matched() {
-        // "subtotal" contains the substring "total" — must not be misidentified as the TOTAL line.
         let stdout = "subtotal  100  50  50.00%";
         let r = parse(stdout, "", 0, "cargo llvm-cov");
         // No TOTAL line found → no percentage extracted → Ok (not Warn)

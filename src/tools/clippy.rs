@@ -6,7 +6,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let warning_count = combined
         .lines()
         .filter(|l| {
-            l.contains("warning:")
+            (l.starts_with("warning:") || l.contains("warning["))
                 && !l.contains("warning emitted")
                 && !l.contains("warnings emitted")
         })
@@ -159,6 +159,25 @@ mod tests {
         assert!(
             !r.summary.contains("2"),
             "count must be 1, not 2: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_clippy_warning_mid_line_not_counted() {
+        // Source code context lines shown by clippy may contain "warning:" mid-line.
+        // Only lines that START with "warning:" (or "warning[") should be counted.
+        let stderr = "warning: unused variable `x`\n  5 |  // triggers warning: if slow\nwarning: 1 warning emitted";
+        let r = parse("", stderr, 0, "cargo clippy");
+        assert_eq!(r.status, ToolStatus::Warn);
+        assert!(
+            r.summary.contains("1"),
+            "context line with mid-line 'warning:' must not inflate count: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("2"),
+            "warning count must be 1, not 2: {}",
             r.summary
         );
     }
