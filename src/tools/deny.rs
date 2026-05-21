@@ -9,7 +9,10 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         .filter(|l| l.contains("error[") || l.starts_with("error:"))
         .count();
 
-    let warning_count = combined.lines().filter(|l| l.contains("warning[")).count();
+    let warning_count = combined
+        .lines()
+        .filter(|l| l.contains("warning[") || l.starts_with("warning:"))
+        .count();
 
     let status = if error_count > 0 || exit_code != 0 {
         ToolStatus::Error
@@ -81,6 +84,19 @@ mod tests {
             r.status,
             ToolStatus::Ok,
             "non-diagnostic lines starting with 'error' must not trigger Error status"
+        );
+    }
+
+    #[test]
+    fn test_deny_warn_bare_warning_line() {
+        // cargo deny emits bare "warning: ..." lines for configuration issues.
+        // These must trigger ToolStatus::Warn when no errors are present.
+        let stderr = "warning: configuration file not found";
+        let r = parse("", stderr, 0, "cargo deny check");
+        assert_eq!(
+            r.status,
+            ToolStatus::Warn,
+            "bare 'warning:' line must trigger Warn status"
         );
     }
 

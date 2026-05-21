@@ -94,7 +94,7 @@ mod tests {
     fn test_audit_vuln() {
         let r = parse(
             "",
-            "error[RUSTSEC-2022-0001]: vuln\n1 vulnerabilities found",
+            "error[RUSTSEC-2022-0001]: vuln\n1 vulnerability found",
             1,
             "cargo audit",
         );

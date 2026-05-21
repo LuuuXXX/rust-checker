@@ -142,9 +142,10 @@ mod tests {
         save_history(&reports, &history_dir, 3).unwrap();
 
         let entries = list_history_dirs(&history_dir).unwrap();
-        assert!(
-            entries.len() <= 3,
-            "expected <= 3 entries after prune, got {}",
+        assert_eq!(
+            entries.len(),
+            3,
+            "expected exactly 3 entries after prune, got {}",
             entries.len()
         );
     }
