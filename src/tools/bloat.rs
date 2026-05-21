@@ -45,8 +45,9 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
                 }
             }
         }
-        // Count function/section rows (lines with %)
-        if line.contains('%') && !lower.contains("file") && !lower.contains("total") {
+        // Count function/section rows: only lines that carry a '%' column are data rows.
+        // The binary-size summary line never contains '%', so no further guard is needed.
+        if line.contains('%') {
             function_count += 1;
         }
     }
@@ -129,12 +130,31 @@ mod tests {
     fn test_bloat_crate_name_contains_file_not_confused_with_size_line() {
         // A function row whose crate name contains "file" must NOT be mistaken for
         // the binary size summary line. Only the summary line (no '%') should set total_size.
+        // The function row must also be counted (function_count == 1).
         let stdout = "  5.2%  6.0%  2.0KiB  libfile-utils  open_fn\n File .text size: 512KiB";
         let r = parse(stdout, "", 0, "cargo bloat");
         assert_eq!(r.status, ToolStatus::Ok);
         assert!(
             r.summary.contains("512KiB"),
             "total size must come from the summary line, not the function row: {}",
+            r.summary
+        );
+        assert!(
+            r.summary.contains('1'),
+            "function row with 'file' in crate name must be counted: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_bloat_crate_name_contains_total_still_counted() {
+        // A function row whose crate name contains "total" must still be counted.
+        let stdout = "  3.0%  3.5%  1.0KiB  libtotal-utils  sum_fn\n File .text size: 256KiB";
+        let r = parse(stdout, "", 0, "cargo bloat");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains('1'),
+            "function row with 'total' in crate name must be counted: {}",
             r.summary
         );
     }

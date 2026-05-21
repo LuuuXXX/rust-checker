@@ -40,7 +40,7 @@ enum Commands {
         dir: PathBuf,
 
         /// 报告格式 (markdown | html | json)
-        #[arg(short, long, default_value = "markdown")]
+        #[arg(short, long, default_value = "markdown", value_parser = ["markdown", "html", "json"])]
         format: String,
 
         /// CI 模式：跳过交互提示，额外输出 JSON 结果
