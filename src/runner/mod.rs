@@ -407,7 +407,7 @@ mod tests {
             output_path: "quality/build.md".to_string(),
             markdown_content: String::new(),
         };
-        let reports = vec![dep_report];
+        let reports = [dep_report];
         let active = true;
 
         // This is the exact predicate from runner/mod.rs:
