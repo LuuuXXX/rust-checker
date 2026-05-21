@@ -34,9 +34,9 @@ impl Runner {
         Runner {
             config,
             working_dir: working_dir.to_path_buf(),
-            report_dir: project_dir.join(".localcheck").join("reports"),
-            log_dir: project_dir.join(".localcheck").join("logs"),
-            history_dir: project_dir.join(".localcheck").join("history"),
+            report_dir: project_dir.join(".rust-checker").join("reports"),
+            log_dir: project_dir.join(".rust-checker").join("logs"),
+            history_dir: project_dir.join(".rust-checker").join("history"),
             format,
             ci_mode,
         }
@@ -96,9 +96,11 @@ impl Runner {
                             .get(d.as_str())
                             .map(|tc| tc.active)
                             .unwrap_or(false)
-                            && reports
-                                .iter()
-                                .any(|r| &r.tool_name == *d && r.status == ToolStatus::Error)
+                            && reports.iter().any(|r| {
+                                &r.tool_name == *d
+                                    && (r.status == ToolStatus::Error
+                                        || r.status == ToolStatus::Skipped)
+                            })
                     })
                     .cloned()
                     .collect();
@@ -138,14 +140,32 @@ impl Runner {
             let start = Instant::now();
 
             let cmd_str = &tool_cfg.input_command;
+            if cmd_str.trim().is_empty() {
+                bail!("tool '{tool_name}' has an empty input_command — check your config");
+            }
             let parts: Vec<&str> = cmd_str.split_whitespace().collect();
-            let (program, args) = parts.split_first().unwrap_or((&"cargo", &[]));
+            let (program, args) = parts.split_first().expect("cmd non-empty verified above");
 
-            let output = std::process::Command::new(program)
-                .args(args)
+            let mut cmd = std::process::Command::new(program);
+            cmd.args(args)
                 // Run tools in the effective project directory (workspace member path
                 // when --crate is used, otherwise the project root).
-                .current_dir(&self.working_dir)
+                .current_dir(&self.working_dir);
+
+            // Inject RUSTFLAGS from [rust] config when set and non-empty.
+            // This overrides any existing RUSTFLAGS in the environment; users who
+            // need to merge values should encode them all in [rust.rustflags].
+            if let Some(flags) = self
+                .config
+                .rust
+                .as_ref()
+                .and_then(|r| r.rustflags.as_deref())
+                .filter(|f| !f.is_empty())
+            {
+                cmd.env("RUSTFLAGS", flags);
+            }
+
+            let output = cmd
                 .output()
                 .with_context(|| format!("Failed to run: {cmd_str}"))?;
 
@@ -372,5 +392,39 @@ mod tests {
         assert_eq!(r.status, ToolStatus::Skipped);
         // Should use the builtin default for clippy
         assert_eq!(r.output_path, "quality/clippy.md");
+    }
+
+    /// The dependency-skip filter must only block on Error or Skipped.
+    /// A Warn result from a dependency must NOT prevent the dependent from running.
+    #[test]
+    fn test_warn_dep_filter_does_not_skip() {
+        // Simulate the inner filter predicate used in Runner::run.
+        // A dependency report with Warn status should not appear in `failed_deps`.
+        let dep_report = ToolReport {
+            tool_name: "build".to_string(),
+            status: ToolStatus::Warn,
+            summary: "1 warning".to_string(),
+            output_path: "quality/build.md".to_string(),
+            markdown_content: String::new(),
+        };
+        let reports = [dep_report];
+        let active = true;
+
+        // This is the exact predicate from runner/mod.rs:
+        let failed: Vec<_> = ["build"]
+            .iter()
+            .filter(|d| {
+                active
+                    && reports.iter().any(|r| {
+                        &r.tool_name == *d
+                            && (r.status == ToolStatus::Error || r.status == ToolStatus::Skipped)
+                    })
+            })
+            .collect();
+
+        assert!(
+            failed.is_empty(),
+            "Warn-status dep must NOT trigger a skip of the dependent tool"
+        );
     }
 }

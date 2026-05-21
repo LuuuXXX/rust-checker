@@ -10,19 +10,44 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
 
     for line in combined.lines() {
         let lower = line.to_lowercase();
+        // real cargo bloat uses KiB/MiB (kibibyte units); also accept plain KB/MB/B.
+        // Exclude function rows (they always contain '%'); only the summary line is wanted.
         if lower.contains("file")
-            && (lower.contains("kb") || lower.contains("mb") || lower.contains("bytes"))
+            && !line.contains('%')
+            && (lower.contains("kb")
+                || lower.contains("kib")
+                || lower.contains("mb")
+                || lower.contains("mib")
+                || lower.contains("bytes"))
         {
-            // Extract size info
+            // Extract size info — real cargo bloat uses KiB/MiB; also accept plain KB/MB/B/bytes
             for part in line.split_whitespace() {
-                if part.ends_with("KB") || part.ends_with("MB") || part.ends_with('B') {
-                    total_size = Some(part.to_string());
+                if part.ends_with("KiB")
+                    || part.ends_with("MiB")
+                    || part.ends_with("KB")
+                    || part.ends_with("MB")
+                    || part.ends_with('B')
+                    || part.to_lowercase() == "bytes"
+                {
+                    // For a bare "bytes" token, grab the preceding numeric token as the size.
+                    if part.to_lowercase() == "bytes" {
+                        // We re-scan the line to pick up "N bytes" where N is the previous token.
+                        let parts: Vec<&str> = line.split_whitespace().collect();
+                        if let Some(pos) = parts.iter().position(|p| p.to_lowercase() == "bytes") {
+                            if pos > 0 && parts[pos - 1].parse::<u64>().is_ok() {
+                                total_size = Some(format!("{} bytes", parts[pos - 1]));
+                            }
+                        }
+                    } else {
+                        total_size = Some(part.to_string());
+                    }
                     break;
                 }
             }
         }
-        // Count function/section rows (lines with %)
-        if line.contains('%') && !lower.contains("file") && !lower.contains("total") {
+        // Count function/section rows: only lines that carry a '%' column are data rows.
+        // The binary-size summary line never contains '%', so no further guard is needed.
+        if line.contains('%') {
             function_count += 1;
         }
     }
@@ -70,8 +95,67 @@ mod tests {
     }
 
     #[test]
+    fn test_bloat_kib_format() {
+        // Real cargo bloat uses KiB/MiB units (kibibytes), not plain KB/MB.
+        let stdout = " 10.2%  11.0%  1.2KiB          my_crate foo_fn\n File .text size: 512KiB";
+        let r = parse(stdout, "", 0, "cargo bloat");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains("KiB"),
+            "KiB size must appear in summary: {}",
+            r.summary
+        );
+    }
+
+    #[test]
     fn test_bloat_fail() {
         let r = parse("", "error: failed", 1, "cargo bloat");
         assert_eq!(r.status, ToolStatus::Error);
+    }
+
+    #[test]
+    fn test_bloat_bytes_format() {
+        // "N bytes" (space-separated) must also be recognised.
+        let stdout = " File  .text   Size          Crate Name\n  1.0%  1.2%   128 bytes          foo f\n File size: 1024 bytes";
+        let r = parse(stdout, "", 0, "cargo bloat");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains("bytes"),
+            "space-separated bytes size must appear in summary: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_bloat_crate_name_contains_file_not_confused_with_size_line() {
+        // A function row whose crate name contains "file" must NOT be mistaken for
+        // the binary size summary line. Only the summary line (no '%') should set total_size.
+        // The function row must also be counted (function_count == 1).
+        let stdout = "  5.2%  6.0%  2.0KiB  libfile-utils  open_fn\n File .text size: 512KiB";
+        let r = parse(stdout, "", 0, "cargo bloat");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains("512KiB"),
+            "total size must come from the summary line, not the function row: {}",
+            r.summary
+        );
+        assert!(
+            r.summary.contains('1'),
+            "function row with 'file' in crate name must be counted: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_bloat_crate_name_contains_total_still_counted() {
+        // A function row whose crate name contains "total" must still be counted.
+        let stdout = "  3.0%  3.5%  1.0KiB  libtotal-utils  sum_fn\n File .text size: 256KiB";
+        let r = parse(stdout, "", 0, "cargo bloat");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains('1'),
+            "function row with 'total' in crate name must be counted: {}",
+            r.summary
+        );
     }
 }

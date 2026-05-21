@@ -6,10 +6,13 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     // cargo deny outputs "error[" lines for denies
     let error_count = combined
         .lines()
-        .filter(|l| l.contains("error[") || (l.starts_with("error") && !l.contains("warning")))
+        .filter(|l| l.contains("error[") || l.starts_with("error:"))
         .count();
 
-    let warning_count = combined.lines().filter(|l| l.contains("warning[")).count();
+    let warning_count = combined
+        .lines()
+        .filter(|l| l.contains("warning[") || l.starts_with("warning:"))
+        .count();
 
     let status = if error_count > 0 || exit_code != 0 {
         ToolStatus::Error
@@ -31,10 +34,10 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
 
     let markdown_content = format!(
         "# Deny\n\n**命令**: `{command}`\n\n**状态**: {}\n\n**摘要**: {}\n\n## 输出\n\n```\n{}\n```\n",
-        if exit_code == 0 && error_count == 0 {
-            "✅ 通过"
-        } else {
-            "❌ 违规"
+        match status {
+            ToolStatus::Ok => "✅ 通过",
+            ToolStatus::Warn => "⚠️ 警告",
+            _ => "❌ 违规",
         },
         summary,
         combined.trim()
@@ -70,5 +73,59 @@ mod tests {
         let stderr = "error[denied]: crate 'openssl' is denied";
         let r = parse("", stderr, 1, "cargo deny check");
         assert_eq!(r.status, ToolStatus::Error);
+    }
+
+    #[test]
+    fn test_deny_error_filter_not_too_broad() {
+        // Lines that start with "error" but aren't "error:" diagnostics must not be counted.
+        let stdout = "error-prone pattern detected\nerrors in policy file";
+        let r = parse(stdout, "", 0, "cargo deny check");
+        assert_eq!(
+            r.status,
+            ToolStatus::Ok,
+            "non-diagnostic lines starting with 'error' must not trigger Error status"
+        );
+    }
+
+    #[test]
+    fn test_deny_warn_bare_warning_line() {
+        // cargo deny emits bare "warning: ..." lines for configuration issues.
+        // These must trigger ToolStatus::Warn when no errors are present.
+        let stderr = "warning: configuration file not found";
+        let r = parse("", stderr, 0, "cargo deny check");
+        assert_eq!(
+            r.status,
+            ToolStatus::Warn,
+            "bare 'warning:' line must trigger Warn status"
+        );
+    }
+
+    #[test]
+    fn test_deny_error_with_warning_in_message_not_suppressed() {
+        // "error: warning configuration …" — starts_with("error:") so must be counted.
+        let stderr = "error: warning configuration is not supported for this lint";
+        let r = parse("", stderr, 1, "cargo deny check");
+        assert_eq!(
+            r.status,
+            ToolStatus::Error,
+            "'error: warning …' line must not be silently suppressed"
+        );
+    }
+
+    #[test]
+    fn test_deny_warn_markdown_shows_warning_status() {
+        // When status is Warn, the markdown header must show "⚠️ 警告", not "✅ 通过".
+        let stderr = "warning: configuration file not found";
+        let r = parse("", stderr, 0, "cargo deny check");
+        assert_eq!(r.status, ToolStatus::Warn);
+        assert!(
+            r.markdown_content.contains("⚠️ 警告"),
+            "markdown must show ⚠️ 警告 for Warn status: {}",
+            r.markdown_content
+        );
+        assert!(
+            !r.markdown_content.contains("✅ 通过"),
+            "markdown must not show ✅ 通过 for Warn status"
+        );
     }
 }

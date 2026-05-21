@@ -113,28 +113,28 @@ jobs:
 
       - name: Verify ci_result.json was created
         run: |
-          test -f .localcheck/reports/ci_result.json
+          test -f .rust-checker/reports/ci_result.json
           echo "=== ci_result.json ==="
-          cat .localcheck/reports/ci_result.json
+          cat .rust-checker/reports/ci_result.json
 
       - name: Verify summary.md was created
         run: |
-          test -f .localcheck/reports/summary.md
+          test -f .rust-checker/reports/summary.md
           echo "=== summary.md ==="
-          cat .localcheck/reports/summary.md
+          cat .rust-checker/reports/summary.md
 
       - name: Verify history entry was created (Phase 3)
         run: |
-          ls .localcheck/history/
-          find .localcheck/history -name "result.json" | head -1 | xargs cat
+          ls .rust-checker/history/
+          find .rust-checker/history -name "result.json" | head -1 | xargs cat
 
-      - name: rust-checker diff --last 1 (Phase 3)
+      - name: rust-checker diff --last 1
         run: ./target/debug/rust-checker diff --last 1
 
-      - name: rust-checker upgrade (Phase 3 - already v2, should be no-op)
+      - name: rust-checker upgrade (already v2, should be no-op)
         run: ./target/debug/rust-checker upgrade
 
-      - name: rust-checker plugin list (Phase 3)
+      - name: rust-checker plugin list
         run: ./target/debug/rust-checker plugin list
 
       - name: Upload reports as artifact
@@ -142,5 +142,5 @@ jobs:
         if: always()
         with:
           name: rust-checker-reports
-          path: .localcheck/reports/
+          path: .rust-checker/reports/
           retention-days: 7

@@ -3,10 +3,9 @@ use crate::report::{ToolReport, ToolStatus};
 pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolReport {
     let combined = format!("{}\n{}", stdout, stderr);
 
-    // Check for SVG file generation
-    let svg_generated = combined
-        .lines()
-        .any(|l| l.contains(".svg") || l.contains("flamegraph"));
+    // Check for SVG file generation — only a line containing ".svg" is reliable;
+    // the word "flamegraph" appears in normal status output and is not a signal.
+    let svg_generated = combined.lines().any(|l| l.contains(".svg"));
 
     let status = if exit_code != 0 {
         ToolStatus::Error
@@ -76,5 +75,22 @@ mod tests {
     fn test_flamegraph_no_svg() {
         let r = parse("Running...", "", 0, "cargo flamegraph");
         assert_eq!(r.status, ToolStatus::Ok);
+    }
+
+    #[test]
+    fn test_flamegraph_no_false_positive_from_word_flamegraph() {
+        // Lines containing "flamegraph" but no ".svg" must not trigger svg_generated.
+        let r = parse(
+            "flamegraph: sampling PID 1234\nflamegraph: done",
+            "",
+            0,
+            "cargo flamegraph",
+        );
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            !r.summary.contains("SVG"),
+            "must not claim SVG was generated: {}",
+            r.summary
+        );
     }
 }

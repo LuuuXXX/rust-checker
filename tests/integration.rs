@@ -80,7 +80,11 @@ fn test_init_creates_config_file() {
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert!(dir.path().join(".localcheck").join("config.toml").exists());
+    assert!(dir
+        .path()
+        .join(".rust-checker")
+        .join("config.toml")
+        .exists());
 }
 
 #[test]
@@ -94,7 +98,7 @@ fn test_init_minimal_preset_content() {
         .expect("run init");
 
     let content =
-        std::fs::read_to_string(dir.path().join(".localcheck").join("config.toml")).unwrap();
+        std::fs::read_to_string(dir.path().join(".rust-checker").join("config.toml")).unwrap();
     assert!(content.contains("build"));
     assert!(content.contains("test"));
     assert!(content.contains("clippy"));
@@ -112,7 +116,7 @@ fn test_init_full_preset_has_all_tools() {
         .expect("run init");
 
     let content =
-        std::fs::read_to_string(dir.path().join(".localcheck").join("config.toml")).unwrap();
+        std::fs::read_to_string(dir.path().join(".rust-checker").join("config.toml")).unwrap();
     // Spot-check several tools from all categories
     for tool in &[
         "build", "test", "clippy", "audit", "geiger", "msrv", "bloat", "bench",
@@ -133,7 +137,7 @@ fn test_init_no_overwrite_without_force() {
         .expect("first init");
 
     // Overwrite with custom marker
-    let config_path = dir.path().join(".localcheck").join("config.toml");
+    let config_path = dir.path().join(".rust-checker").join("config.toml");
     std::fs::write(&config_path, "# sentinel_marker\n").unwrap();
 
     // Second init without --force should NOT overwrite
@@ -163,7 +167,7 @@ fn test_init_force_flag_overwrites() {
         .expect("first init");
 
     // Overwrite with sentinel
-    let config_path = dir.path().join(".localcheck").join("config.toml");
+    let config_path = dir.path().join(".rust-checker").join("config.toml");
     std::fs::write(&config_path, "# sentinel_marker\n").unwrap();
 
     // Second init WITH --force should overwrite
@@ -204,13 +208,13 @@ fn test_run_fails_without_config() {
 }
 
 #[test]
-fn test_run_empty_tools_config_errors() {
+fn test_run_unknown_tool_in_only_flag_errors() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
-    std::fs::create_dir_all(&localcheck).unwrap();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
     // Config with no tools
     std::fs::write(
-        localcheck.join("config.toml"),
+        rust_checker.join("config.toml"),
         r#"schema_version = "1"
 [rust]
 version = "1.75.0"
@@ -232,12 +236,12 @@ version = "1.75.0"
 #[test]
 fn test_run_ci_mode_creates_json() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
-    std::fs::create_dir_all(&localcheck).unwrap();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
 
     // Config with one inactive tool (so it skips immediately without running cargo)
     std::fs::write(
-        localcheck.join("config.toml"),
+        rust_checker.join("config.toml"),
         r#"schema_version = "1"
 
 [tools.build]
@@ -262,7 +266,7 @@ input_command = "cargo build"
     );
 
     // CI mode should produce a ci_result.json
-    let json_path = localcheck.join("reports").join("ci_result.json");
+    let json_path = rust_checker.join("reports").join("ci_result.json");
     assert!(json_path.exists(), "ci_result.json not found");
 
     let json_content = std::fs::read_to_string(&json_path).unwrap();
@@ -275,12 +279,12 @@ input_command = "cargo build"
 #[test]
 fn test_run_generates_summary_md() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
-    std::fs::create_dir_all(&localcheck).unwrap();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
 
     // Config with one inactive tool
     std::fs::write(
-        localcheck.join("config.toml"),
+        rust_checker.join("config.toml"),
         r#"schema_version = "1"
 
 [tools.build]
@@ -303,7 +307,7 @@ input_command = "cargo build"
         String::from_utf8_lossy(&out.stderr)
     );
 
-    let summary_path = localcheck.join("reports").join("summary.md");
+    let summary_path = rust_checker.join("reports").join("summary.md");
     assert!(summary_path.exists(), "summary.md not found");
     let content = std::fs::read_to_string(&summary_path).unwrap();
     assert!(content.contains("build"));
@@ -316,11 +320,11 @@ input_command = "cargo build"
 #[test]
 fn test_run_inactive_tool_report_file_is_written() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
-    std::fs::create_dir_all(&localcheck).unwrap();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
 
     std::fs::write(
-        localcheck.join("config.toml"),
+        rust_checker.join("config.toml"),
         r#"schema_version = "1"
 
 [tools.build]
@@ -344,7 +348,10 @@ input_command = "cargo build"
     );
 
     // The skipped tool report file must exist so summary.md links are valid
-    let report_path = localcheck.join("reports").join("quality").join("build.md");
+    let report_path = rust_checker
+        .join("reports")
+        .join("quality")
+        .join("build.md");
     assert!(
         report_path.exists(),
         "skipped tool report quality/build.md not found"
@@ -363,11 +370,11 @@ input_command = "cargo build"
 #[test]
 fn test_run_creates_history_entry() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
-    std::fs::create_dir_all(&localcheck).unwrap();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
 
     std::fs::write(
-        localcheck.join("config.toml"),
+        rust_checker.join("config.toml"),
         r#"schema_version = "2"
 
 [history]
@@ -393,7 +400,7 @@ input_command = "cargo build"
         String::from_utf8_lossy(&out.stderr)
     );
 
-    let history_dir = localcheck.join("history");
+    let history_dir = rust_checker.join("history");
     assert!(history_dir.exists(), "history directory was not created");
 
     let entries: Vec<_> = std::fs::read_dir(&history_dir)
@@ -424,9 +431,9 @@ input_command = "cargo build"
 #[test]
 fn test_diff_no_history_errors() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
-    std::fs::create_dir_all(&localcheck).unwrap();
-    std::fs::write(localcheck.join("config.toml"), "schema_version = \"2\"\n").unwrap();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
+    std::fs::write(rust_checker.join("config.toml"), "schema_version = \"2\"\n").unwrap();
 
     let out = Command::new(bin())
         .args(["diff", "--dir"])
@@ -440,10 +447,10 @@ fn test_diff_no_history_errors() {
 #[test]
 fn test_diff_last_shows_trend() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
-    let history_dir = localcheck.join("history");
+    let rust_checker = dir.path().join(".rust-checker");
+    let history_dir = rust_checker.join("history");
     std::fs::create_dir_all(&history_dir).unwrap();
-    std::fs::write(localcheck.join("config.toml"), "schema_version = \"2\"\n").unwrap();
+    std::fs::write(rust_checker.join("config.toml"), "schema_version = \"2\"\n").unwrap();
 
     // Create two fake history entries
     for ts in &["20260101-100000", "20260101-110000"] {
@@ -472,7 +479,14 @@ fn test_diff_last_shows_trend() {
     );
 
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("趋势") || stdout.contains("20260101"));
+    assert!(
+        stdout.contains("趋势"),
+        "expected trend output, got: {stdout}"
+    );
+    assert!(
+        stdout.contains("20260101"),
+        "expected timestamp in trend output, got: {stdout}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -493,10 +507,10 @@ fn test_upgrade_no_config_fails() {
 #[test]
 fn test_upgrade_migrates_v1_config() {
     let dir = temp_dir();
-    let localcheck = dir.path().join(".localcheck");
-    std::fs::create_dir_all(&localcheck).unwrap();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
     std::fs::write(
-        localcheck.join("config.toml"),
+        rust_checker.join("config.toml"),
         "schema_version = \"1\"\n\n[tools.build]\ndesc = \"build\"\nactive = true\ninput_command = \"cargo build\"\n",
     )
     .unwrap();
@@ -513,14 +527,14 @@ fn test_upgrade_migrates_v1_config() {
         String::from_utf8_lossy(&out.stderr)
     );
 
-    let content = std::fs::read_to_string(localcheck.join("config.toml")).unwrap();
+    let content = std::fs::read_to_string(rust_checker.join("config.toml")).unwrap();
     assert!(
         content.contains("schema_version = \"2\""),
         "schema_version not updated"
     );
     // Backup should exist
     assert!(
-        localcheck.join("config.toml.bak").exists(),
+        rust_checker.join("config.toml.bak").exists(),
         "backup not created"
     );
 }
@@ -547,15 +561,15 @@ fn test_plugin_list_empty() {
 }
 
 // ---------------------------------------------------------------------------
-// `rust-checker run --crate` reports go to workspace root .localcheck/
+// `rust-checker run --crate` reports go to workspace root .rust-checker/
 // ---------------------------------------------------------------------------
 
 #[test]
 fn test_run_crate_mode_reports_go_to_workspace_root() {
     let dir = temp_dir();
     let workspace_root = dir.path();
-    let localcheck = workspace_root.join(".localcheck");
-    std::fs::create_dir_all(&localcheck).unwrap();
+    let rust_checker = workspace_root.join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
 
     // Create a fake workspace with one member crate
     let crate_dir = workspace_root.join("crates").join("my-lib");
@@ -573,7 +587,7 @@ fn test_run_crate_mode_reports_go_to_workspace_root() {
 
     // Config at workspace root
     std::fs::write(
-        localcheck.join("config.toml"),
+        rust_checker.join("config.toml"),
         r#"schema_version = "1"
 
 [tools.build]
@@ -597,18 +611,18 @@ input_command = "cargo build"
         String::from_utf8_lossy(&out.stderr)
     );
 
-    // Reports must be written to the WORKSPACE root .localcheck/reports/, not to
-    // crates/my-lib/.localcheck/reports/
-    let report_path = localcheck.join("reports").join("summary.md");
+    // Reports must be written to the WORKSPACE root .rust-checker/reports/, not to
+    // crates/my-lib/.rust-checker/reports/
+    let report_path = rust_checker.join("reports").join("summary.md");
     assert!(
         report_path.exists(),
-        "summary.md should be in workspace root .localcheck/, not in crate subdir"
+        "summary.md should be in workspace root .rust-checker/, not in crate subdir"
     );
 
-    // Crate subdir must NOT have a stray .localcheck/ directory
+    // Crate subdir must NOT have a stray .rust-checker/ directory
     assert!(
-        !crate_dir.join(".localcheck").exists(),
-        "stray .localcheck/ found in crate directory"
+        !crate_dir.join(".rust-checker").exists(),
+        "stray .rust-checker/ found in crate directory"
     );
 }
 
@@ -621,4 +635,211 @@ fn test_plugin_remove_nonexistent_is_ok() {
         .output()
         .expect("plugin remove");
     assert!(out.status.success());
+}
+
+// ---------------------------------------------------------------------------
+// `rust-checker diff` integration tests (extended)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_diff_latest_with_two_entries() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    let history_dir = rust_checker.join("history");
+    std::fs::create_dir_all(&history_dir).unwrap();
+    std::fs::write(rust_checker.join("config.toml"), "schema_version = \"2\"\n").unwrap();
+
+    // Create two fake history entries with different statuses
+    let entry_a = history_dir.join("20260101-100000");
+    let entry_b = history_dir.join("20260101-110000");
+    std::fs::create_dir_all(&entry_a).unwrap();
+    std::fs::create_dir_all(&entry_b).unwrap();
+    std::fs::write(
+        entry_a.join("result.json"),
+        r#"{"timestamp":"20260101-100000","tools":[{"tool_name":"build","status":"ok","summary":"built"},{"tool_name":"test","status":"ok","summary":"10 passed"}]}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        entry_b.join("result.json"),
+        r#"{"timestamp":"20260101-110000","tools":[{"tool_name":"build","status":"ok","summary":"built"},{"tool_name":"test","status":"error","summary":"2 failed"}]}"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["diff", "--dir"])
+        .arg(dir.path())
+        .output()
+        .expect("diff command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    // Diff output must identify the regressing tool and both timestamps.
+    assert!(
+        stdout.contains("test"),
+        "diff must mention the regressing tool 'test': {stdout}"
+    );
+    assert!(
+        stdout.contains("20260101"),
+        "diff must include the timestamp: {stdout}"
+    );
+    // The regression: test went from ok → error; look for an indicator of degradation.
+    assert!(
+        stdout.contains("error") || stdout.contains("↓") || stdout.contains("劣化"),
+        "diff must indicate a regression: {stdout}"
+    );
+}
+
+#[test]
+fn test_diff_range_no_match_errors() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    let history_dir = rust_checker.join("history");
+    std::fs::create_dir_all(&history_dir).unwrap();
+    std::fs::write(rust_checker.join("config.toml"), "schema_version = \"2\"\n").unwrap();
+
+    // One entry outside the queried range
+    let entry = history_dir.join("20260601-120000");
+    std::fs::create_dir_all(&entry).unwrap();
+    std::fs::write(
+        entry.join("result.json"),
+        r#"{"timestamp":"20260601-120000","tools":[]}"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["diff", "--dir"])
+        .arg(dir.path())
+        .args(["--from", "20260101", "--to", "20260131"])
+        .output()
+        .expect("diff --from --to");
+
+    assert!(
+        !out.status.success(),
+        "diff with no matching range should fail"
+    );
+}
+
+#[test]
+fn test_diff_last_single_entry_shows_trend() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    let history_dir = rust_checker.join("history");
+    std::fs::create_dir_all(&history_dir).unwrap();
+    std::fs::write(rust_checker.join("config.toml"), "schema_version = \"2\"\n").unwrap();
+
+    // Only one entry
+    let entry = history_dir.join("20260101-100000");
+    std::fs::create_dir_all(&entry).unwrap();
+    std::fs::write(
+        entry.join("result.json"),
+        r#"{"timestamp":"20260101-100000","tools":[{"tool_name":"build","status":"ok","summary":"built"}]}"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["diff", "--dir"])
+        .arg(dir.path())
+        .args(["--last", "5"])
+        .output()
+        .expect("diff --last 5");
+
+    // With only one entry, --last should still succeed (shows trend of 1)
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// `rust-checker run --set-cmd` integration tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_run_set_cmd_overrides_inactive_tool() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
+
+    std::fs::write(
+        rust_checker.join("config.toml"),
+        r#"schema_version = "2"
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+"#,
+    )
+    .unwrap();
+
+    // Override inactive tool's command — should still succeed (tool is inactive/skipped)
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .args(["--set-cmd", "build=cargo build --release"])
+        .output()
+        .expect("run --set-cmd");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn test_run_set_cmd_unknown_tool_errors() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
+
+    std::fs::write(
+        rust_checker.join("config.toml"),
+        r#"schema_version = "2"
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .args(["--set-cmd", "nonexistent=cargo build"])
+        .output()
+        .expect("run with unknown tool");
+
+    assert!(
+        !out.status.success(),
+        "expected failure for unknown tool in --set-cmd"
+    );
+}
+
+#[test]
+fn test_run_set_cmd_bad_format_errors() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
+
+    std::fs::write(rust_checker.join("config.toml"), "schema_version = \"2\"\n").unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .args(["--set-cmd", "no-equals-sign"])
+        .output()
+        .expect("run with bad set-cmd format");
+
+    assert!(
+        !out.status.success(),
+        "expected failure for malformed --set-cmd"
+    );
 }

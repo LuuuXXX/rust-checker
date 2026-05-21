@@ -3,10 +3,16 @@ use crate::report::{ToolReport, ToolStatus};
 pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolReport {
     let combined = format!("{}\n{}", stdout, stderr);
 
-    // Extract benchmark results: lines like "test bench_foo ... bench: 1,234 ns/iter (+/- 56)"
+    // Extract benchmark results:
+    //   libtest format:  "test bench_foo ... bench:  1,234 ns/iter (+/- 56)"
+    //   criterion format: "bench_add   time:   [10.234 ns 10.456 ns 10.678 ns]"
     let bench_results: Vec<&str> = combined
         .lines()
-        .filter(|l| l.contains("bench:") || l.contains("ns/iter"))
+        .filter(|l| {
+            l.contains("bench:")
+                || l.contains("ns/iter")
+                || (l.contains("time:") && l.contains('['))
+        })
         .collect();
 
     let bench_count = bench_results.len();
@@ -75,5 +81,19 @@ mod tests {
     fn test_bench_no_results() {
         let r = parse("running 0 benchmarks", "", 0, "cargo bench");
         assert_eq!(r.status, ToolStatus::Ok);
+    }
+
+    #[test]
+    fn test_bench_criterion_format() {
+        // criterion outputs "bench_name   time:   [lo mid hi]" — no "ns/iter"
+        let stdout = "bench_add               time:   [10.234 ns 10.456 ns 10.678 ns]\n\
+            bench_mul               time:   [20.1 ns 20.5 ns 20.9 ns]";
+        let r = parse(stdout, "", 0, "cargo bench");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains("2"),
+            "criterion benches must be counted: {}",
+            r.summary
+        );
     }
 }

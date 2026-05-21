@@ -5,7 +5,32 @@ use which::which;
 
 pub struct ToolDep {
     pub binary: &'static str,
+    /// `cargo install <pkg>` or `rustup component add <comp>` hint.
     pub cargo_install: Option<&'static str>,
+    /// Platform-specific system package manager hints (shown when cargo_install is None
+    /// or as supplementary information).
+    pub system_install: Option<SystemInstallHint>,
+}
+
+/// Platform-specific installation hints for tools that may need OS-level packages.
+pub struct SystemInstallHint {
+    pub linux: Option<&'static str>,
+    pub macos: Option<&'static str>,
+    pub windows: Option<&'static str>,
+}
+
+impl SystemInstallHint {
+    /// Return the hint appropriate for the current OS, if any.
+    pub fn for_current_os(&self) -> Option<&'static str> {
+        #[cfg(target_os = "linux")]
+        return self.linux;
+        #[cfg(target_os = "macos")]
+        return self.macos;
+        #[cfg(target_os = "windows")]
+        return self.windows;
+        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        return None;
+    }
 }
 
 pub fn get_tool_dep(tool_name: &str) -> Option<ToolDep> {
@@ -13,50 +38,72 @@ pub fn get_tool_dep(tool_name: &str) -> Option<ToolDep> {
         "build" | "test" | "bench" | "doc" | "deps" | "binary" => Some(ToolDep {
             binary: "cargo",
             cargo_install: None,
+            system_install: None,
         }),
         "coverage" => Some(ToolDep {
             binary: "cargo-llvm-cov",
             cargo_install: Some("cargo-llvm-cov"),
+            // llvm-cov may also need system LLVM on some distros
+            system_install: Some(SystemInstallHint {
+                linux: Some("sudo apt-get install llvm  # 若 cargo-llvm-cov 安装失败时"),
+                macos: Some("brew install llvm  # 若 cargo-llvm-cov 安装失败时"),
+                windows: None,
+            }),
         }),
         "clippy" => Some(ToolDep {
             binary: "cargo-clippy",
             cargo_install: Some("rustup component add clippy"),
+            system_install: None,
         }),
         "fmt" => Some(ToolDep {
             binary: "cargo-fmt",
             cargo_install: Some("rustup component add rustfmt"),
+            system_install: None,
         }),
         "audit" => Some(ToolDep {
             binary: "cargo-audit",
             cargo_install: Some("cargo-audit"),
+            system_install: None,
         }),
         "deny" => Some(ToolDep {
             binary: "cargo-deny",
             cargo_install: Some("cargo-deny"),
+            system_install: None,
         }),
         "geiger" | "metrics" => Some(ToolDep {
             binary: "cargo-geiger",
             cargo_install: Some("cargo-geiger"),
+            system_install: None,
         }),
         "msrv" => Some(ToolDep {
             binary: "cargo-msrv",
             cargo_install: Some("cargo-msrv"),
+            system_install: None,
         }),
         "semver" => Some(ToolDep {
             binary: "cargo-semver-checks",
             cargo_install: Some("cargo-semver-checks"),
+            system_install: None,
         }),
         "udeps" => Some(ToolDep {
             binary: "cargo-udeps",
             cargo_install: Some("cargo-udeps"),
+            system_install: None,
         }),
         "bloat" => Some(ToolDep {
             binary: "cargo-bloat",
             cargo_install: Some("cargo-bloat"),
+            system_install: None,
         }),
         "flamegraph" => Some(ToolDep {
             binary: "cargo-flamegraph",
             cargo_install: Some("flamegraph"),
+            // flamegraph relies on perf (Linux) or DTrace (macOS)
+            system_install: Some(SystemInstallHint {
+                linux: Some("sudo apt-get install linux-perf  # Linux: 需要 perf 工具"),
+                macos: Some("# macOS: 需要 DTrace（系统自带），可能需要关闭 SIP"),
+                windows: Some("# Windows: 暂不支持 cargo-flamegraph"),
+            }),
         }),
         _ => None,
     }
@@ -82,19 +129,34 @@ pub fn prompt_and_install(tool_name: &str, dep: &ToolDep) -> Result<bool> {
     let install_hint = match dep.cargo_install {
         Some(cmd) if cmd.starts_with("rustup") => cmd.to_string(),
         Some(pkg) => format!("cargo install {}", pkg),
-        None => return Ok(false),
+        None => {
+            // No cargo install path — show system hint if available and bail
+            if let Some(sys) = &dep.system_install {
+                if let Some(hint) = sys.for_current_os() {
+                    eprintln!("  [info] 系统安装提示: {hint}");
+                }
+            }
+            return Ok(false);
+        }
     };
 
+    // Print supplementary system-level hint when available
+    if let Some(sys) = &dep.system_install {
+        if let Some(hint) = sys.for_current_os() {
+            eprintln!("  [info] 系统依赖提示: {hint}");
+        }
+    }
+
     let prompt = format!(
-        "Tool '{}' (binary: {}) not found. Install with `{}`?",
-        tool_name, dep.binary, install_hint
+        "工具 '{tool_name}'（二进制：{}）未找到。是否通过 `{install_hint}` 自动安装？",
+        dep.binary
     );
 
     let confirm = Confirm::new().with_prompt(&prompt).default(true).interact();
 
     match confirm {
         Ok(true) => {
-            println!("Installing {}...", tool_name);
+            println!("正在安装 {tool_name}...");
             let status = if dep
                 .cargo_install
                 .map(|c| c.starts_with("rustup"))
@@ -163,6 +225,22 @@ mod tests {
         let dep = get_tool_dep("flamegraph").unwrap();
         assert_eq!(dep.binary, "cargo-flamegraph");
         assert_eq!(dep.cargo_install, Some("flamegraph"));
+    }
+
+    #[test]
+    fn test_flamegraph_has_system_install_hints() {
+        let dep = get_tool_dep("flamegraph").unwrap();
+        let hint = dep.system_install.unwrap();
+        assert!(hint.linux.is_some(), "flamegraph should have a Linux hint");
+        assert!(hint.macos.is_some(), "flamegraph should have a macOS hint");
+    }
+
+    #[test]
+    fn test_coverage_has_system_install_hint() {
+        let dep = get_tool_dep("coverage").unwrap();
+        let hint = dep.system_install.unwrap();
+        assert!(hint.linux.is_some(), "coverage should have a Linux hint");
+        assert!(hint.macos.is_some(), "coverage should have a macOS hint");
     }
 
     #[test]

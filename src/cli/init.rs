@@ -124,7 +124,7 @@ const ALL_TOOLS: &[ToolPreset] = &[
 ];
 
 pub fn run_init(project_dir: &Path, preset: &str, force: bool) -> Result<()> {
-    let config_dir = project_dir.join(".localcheck");
+    let config_dir = project_dir.join(".rust-checker");
     let config_path = config_dir.join("config.toml");
 
     if config_path.exists() && !force {
@@ -245,6 +245,14 @@ mod tests {
     fn test_select_tools_full() {
         let tools = select_tools_by_preset("full");
         assert_eq!(tools.len(), ALL_TOOLS.len());
+        // Spot-check that the correct tools are present (not just the count).
+        for preset in ALL_TOOLS {
+            assert!(
+                tools.contains_key(preset.name),
+                "full preset must include tool '{}'",
+                preset.name
+            );
+        }
     }
 
     #[test]
@@ -289,7 +297,7 @@ mod tests {
     fn test_run_init_creates_config() {
         let dir = tempfile::tempdir().unwrap();
         run_init(dir.path(), "minimal", false).unwrap();
-        let config_path = dir.path().join(".localcheck").join("config.toml");
+        let config_path = dir.path().join(".rust-checker").join("config.toml");
         assert!(config_path.exists());
     }
 
@@ -297,7 +305,7 @@ mod tests {
     fn test_run_init_config_is_valid_toml() {
         let dir = tempfile::tempdir().unwrap();
         run_init(dir.path(), "minimal", false).unwrap();
-        let config_path = dir.path().join(".localcheck").join("config.toml");
+        let config_path = dir.path().join(".rust-checker").join("config.toml");
         let content = std::fs::read_to_string(config_path).unwrap();
         let config: crate::config::Config = toml::from_str(&content).unwrap();
         assert!(config.tools.contains_key("build"));
@@ -309,7 +317,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         run_init(dir.path(), "minimal", false).unwrap();
         // Write custom content
-        let config_path = dir.path().join(".localcheck").join("config.toml");
+        let config_path = dir.path().join(".rust-checker").join("config.toml");
         std::fs::write(&config_path, "custom_content = true").unwrap();
         // Run init again without force
         run_init(dir.path(), "full", false).unwrap();
@@ -323,7 +331,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         run_init(dir.path(), "minimal", false).unwrap();
         // Write custom content
-        let config_path = dir.path().join(".localcheck").join("config.toml");
+        let config_path = dir.path().join(".rust-checker").join("config.toml");
         std::fs::write(&config_path, "custom_content = true").unwrap();
         // Run init again WITH force
         run_init(dir.path(), "full", true).unwrap();
@@ -334,9 +342,9 @@ mod tests {
     }
 
     #[test]
-    fn test_run_init_creates_localcheck_dir() {
+    fn test_run_init_creates_rust_checker_dir() {
         let dir = tempfile::tempdir().unwrap();
-        let localcheck_dir = dir.path().join(".localcheck");
+        let localcheck_dir = dir.path().join(".rust-checker");
         assert!(!localcheck_dir.exists());
         run_init(dir.path(), "minimal", false).unwrap();
         assert!(localcheck_dir.exists());
@@ -346,7 +354,7 @@ mod tests {
     fn test_run_init_schema_version_set() {
         let dir = tempfile::tempdir().unwrap();
         run_init(dir.path(), "minimal", false).unwrap();
-        let config_path = dir.path().join(".localcheck").join("config.toml");
+        let config_path = dir.path().join(".rust-checker").join("config.toml");
         let content = std::fs::read_to_string(config_path).unwrap();
         let config: crate::config::Config = toml::from_str(&content).unwrap();
         assert_eq!(config.schema_version.as_deref(), Some("2"));

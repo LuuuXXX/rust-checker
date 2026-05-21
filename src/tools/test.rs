@@ -108,8 +108,8 @@ mod tests {
             r.summary
         );
         assert!(
-            r.summary.contains('1'),
-            "expected 1 failed in: {}",
+            r.summary.contains("失败: 1"),
+            "expected '失败: 1' in: {}",
             r.summary
         );
     }

@@ -8,9 +8,16 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
         .lines()
         .any(|l| l.contains("unused dependencies") || l.contains("unused crates"));
 
+    // Real cargo-udeps lists unused deps as bullet lines under the header:
+    //   * "serde" (normal)
+    //   * "tokio" (dev-build)
+    // Count those bullet lines.  If none are found, `has_unused` still sets Warn status.
     let unused_count = combined
         .lines()
-        .filter(|l| l.contains("unused crate:") || l.contains("unused dependency:"))
+        .filter(|l| {
+            let t = l.trim();
+            t.starts_with("* \"") || t.starts_with("* '")
+        })
         .count();
 
     let status = if exit_code != 0 {
@@ -64,10 +71,29 @@ mod tests {
 
     #[test]
     fn test_udeps_unused() {
-        let stdout = "unused dependencies:\nunused crate: serde\nunused crate: tokio";
+        // Real cargo-udeps bullet format under a header line.
+        let stdout =
+            "warning: unused dependencies:\n * \"serde\" (normal)\n * \"tokio\" (dev-build)";
         let r = parse(stdout, "", 0, "cargo udeps");
         assert_eq!(r.status, ToolStatus::Warn);
-        assert!(r.summary.contains("2"));
+        assert!(
+            r.summary.contains("2"),
+            "must count bullet-format entries: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_udeps_unused_single_quote_variant() {
+        // Defensive: also accept single-quote bullet variant.
+        let stdout = "warning: unused dependencies:\n * 'serde' (normal)";
+        let r = parse(stdout, "", 0, "cargo udeps");
+        assert_eq!(r.status, ToolStatus::Warn);
+        assert!(
+            r.summary.contains("1"),
+            "single-quote bullet must be counted: {}",
+            r.summary
+        );
     }
 
     #[test]

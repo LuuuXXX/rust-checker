@@ -10,9 +10,20 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
 
     let error_count = combined
         .lines()
-        .filter(|l| l.contains("error[") || l.starts_with("error:"))
+        .filter(|l| {
+            (l.contains("error[") || l.starts_with("error:"))
+                && !l.contains("could not compile")
+                && !l.contains("aborting due to")
+        })
         .count();
-    let warning_count = combined.lines().filter(|l| l.contains("warning:")).count();
+    let warning_count = combined
+        .lines()
+        .filter(|l| {
+            (l.starts_with("warning:") || l.contains("warning["))
+                && !l.contains("warning emitted")
+                && !l.contains("warnings emitted")
+        })
+        .count();
 
     let summary = if exit_code == 0 {
         if warning_count > 0 {
@@ -74,5 +85,61 @@ mod tests {
         );
         assert_eq!(r.status, ToolStatus::Ok);
         assert!(r.summary.contains("警告"));
+    }
+
+    #[test]
+    fn test_build_errors_excludes_could_not_compile_line() {
+        // "error: could not compile `foo`" is a rustc summary line, not a diagnostic.
+        let stderr = "error[E0308]: mismatched types\nerror: could not compile `foo` due to 1 previous error";
+        let r = parse("", stderr, 1, "cargo build");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "expected 1 error (not 2) in: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("2"),
+            "summary must not report 2 errors: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_build_errors_excludes_aborting_due_to_line() {
+        // "error: aborting due to N previous errors" is a rustc trailing summary, not a diagnostic.
+        let stderr = "error[E0308]: mismatched types\nerror: aborting due to 1 previous error";
+        let r = parse("", stderr, 1, "cargo build");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "expected 1 error (not 2) in: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("2"),
+            "summary must not report 2 errors: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_build_warning_mid_line_not_counted() {
+        // Source code context lines shown by rustc may contain "warning:" mid-line.
+        // Only lines that START with "warning:" (or "warning[") should be counted.
+        let stderr =
+            "warning: unused variable `x`\n  3 |  // emits warning: when debug\nFinished dev";
+        let r = parse("", stderr, 0, "cargo build");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains("1"),
+            "context line with mid-line 'warning:' must not inflate count: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("2"),
+            "warning count must be 1, not 2: {}",
+            r.summary
+        );
     }
 }

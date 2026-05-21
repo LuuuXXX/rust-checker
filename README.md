@@ -6,13 +6,13 @@
 
 ## 特性
 
-- 🔧 **配置驱动**：所有行为由 `.localcheck/config.toml` 统一管理
+- 🔧 **配置驱动**：所有行为由 `.rust-checker/config.toml` 统一管理
 - 🔁 **串行执行**：按声明顺序依次运行，结果确定可重现
 - 🔗 **依赖感知**：通过 `depends_on` 声明工具间执行顺序
 - 🩺 **依赖预检**：启动前逐一检查工具依赖，自动提示安装
 - 📄 **多格式报告**：Markdown（默认）、HTML、JSON
 - 📊 **汇总总览**：自动生成 `summary.md`，状态一目了然
-- 🤖 **CI 友好**：`--ci` 模式输出机器可读 JSON，工具始终以零退出码退出
+- 🤖 **CI 友好**：`--ci` 模式输出机器可读 JSON，工具执行结果不影响退出码
 - 🪵 **完整日志**：时间戳日志文件，记录工具链环境与执行细节
 - 📈 **历史趋势**：每次 `run` 持久化快照，`diff` 命令可视化趋势变化
 - 🔌 **插件系统**：从 [rust-checker-plugins](https://github.com/LuuuXXX/rust-checker-plugins) 注册表一键安装第三方工具
@@ -52,9 +52,9 @@ rust-checker init --preset quality
 rust-checker run
 
 # 4. 查看汇总报告
-cat .localcheck/reports/summary.md
+cat .rust-checker/reports/summary.md
 
-# 5. 对比上次与本次结果（Phase 3）
+# 5. 对比上次与本次结果
 rust-checker diff
 ```
 
@@ -64,7 +64,7 @@ rust-checker diff
 
 ### `rust-checker init`
 
-初始化 `.localcheck/config.toml` 配置文件。
+初始化 `.rust-checker/config.toml` 配置文件。
 
 ```
 rust-checker init [OPTIONS]
@@ -103,14 +103,15 @@ rust-checker init --dir /path/to/project --preset quality
 rust-checker run [OPTIONS]
 
 Options:
-  -d, --dir <DIR>          项目目录（默认当前目录）
-  -f, --format <FORMAT>    报告格式 [默认: markdown]
-                             markdown | html | json
-      --ci                 CI 模式：跳过交互提示，生成 ci_result.json
-      --only <TOOLS>       只运行指定工具（逗号分隔）
-      --crate <CRATE>      只检查指定 crate（Workspace 模式）
-      --changed            检测本次 git diff 是否有 crate 变更；无变更时跳过检查（Workspace 模式）
-  -h, --help               显示帮助信息
+  -d, --dir <DIR>              项目目录（默认当前目录）
+  -f, --format <FORMAT>        报告格式 [默认: markdown]
+                                 markdown | html | json
+      --ci                     CI 模式：跳过交互提示，生成 ci_result.json
+      --only <TOOLS>           只运行指定工具（逗号分隔）
+      --crate <CRATE>          只检查指定 crate（Workspace 模式）
+      --changed                检测本次 git diff 是否有 crate 变更；无变更时跳过检查（Workspace 模式）
+      --set-cmd <TOOL=CMD>     为特定工具覆盖执行命令（可重复）
+  -h, --help                   显示帮助信息
 ```
 
 **示例：**
@@ -133,6 +134,12 @@ rust-checker run --crate my-lib
 
 # Workspace：有 crate 变更时运行检查，无变更时跳过
 rust-checker run --changed
+
+# 为 clippy 使用更严格的参数
+rust-checker run --set-cmd clippy="cargo clippy -- -D warnings -W clippy::all"
+
+# 同时为多个工具覆盖命令
+rust-checker run --set-cmd build="cargo build --release" --set-cmd test="cargo test -- --nocapture"
 ```
 
 ---
@@ -228,7 +235,7 @@ rust-checker watch --tools clippy,fmt
 
 ### `rust-checker upgrade`
 
-将 `.localcheck/config.toml` 从旧 schema 迁移到最新版本，迁移前自动备份原文件。
+将 `.rust-checker/config.toml` 从旧 schema 迁移到最新版本，迁移前自动备份原文件。
 
 ```
 rust-checker upgrade [OPTIONS]
@@ -249,10 +256,10 @@ rust-checker upgrade
 
 ## 配置文件格式
 
-配置文件位于 `.localcheck/config.toml`，当前 schema 版本为 `"2"`。
+配置文件位于 `.rust-checker/config.toml`，当前 schema 版本为 `"2"`。
 
 ```toml
-# 配置 schema 版本（当前为 "2"，run 自动生成；upgrade 命令可迁移旧版）
+# 配置 schema 版本（当前为 "2"，init 自动生成；upgrade 命令可迁移旧版）
 schema_version = "2"
 
 # Rust 工具链配置（可选）
@@ -260,12 +267,12 @@ schema_version = "2"
 version = "1.75.0"
 rustflags = ""
 
-# 历史记录配置（Phase 3 新增）
-# 每次 run 自动保存快照到 .localcheck/history/，超出 max_entries 后自动清理
+# 历史记录配置（可选）
+# 每次 run 自动保存快照到 .rust-checker/history/，超出 max_entries 后自动清理
 [history]
 max_entries = 10
 
-# Watch 模式配置（Phase 3 新增，可选）
+# Watch 模式配置（可选）
 # rust-checker watch 使用此配置
 [watch]
 paths       = ["src"]     # 监听目录列表
@@ -308,26 +315,50 @@ input_command = "bash scripts/check.sh"
 
 ## 内置工具列表
 
-| 工具 | 命令 | 报告路径 | 需要安装 |
-|------|------|---------|---------|
-| `build` | `cargo build` | `quality/build.md` | — |
-| `test` | `cargo test` | `quality/test.md` | — |
-| `coverage` | `cargo llvm-cov` | `quality/coverage.md` | `cargo install cargo-llvm-cov` |
-| `clippy` | `cargo clippy` | `quality/clippy.md` | `rustup component add clippy` |
-| `fmt` | `cargo fmt --check` | `quality/fmt.md` | `rustup component add rustfmt` |
-| `doc` | `cargo doc --no-deps` | `quality/doc.md` | — |
-| `audit` | `cargo audit` | `security/audit.md` | `cargo install cargo-audit` |
-| `deny` | `cargo deny check` | `security/deny.md` | `cargo install cargo-deny` |
-| `geiger` | `cargo geiger` | `security/geiger.md` | `cargo install cargo-geiger` |
-| `metrics` | `cargo geiger --output-format Ratio` | `perf/metrics.md` | `cargo install cargo-geiger` |
-| `deps` | `cargo tree` | `deps/deps.md` | — |
-| `msrv` | `cargo msrv` | `compat/msrv.md` | `cargo install cargo-msrv` |
-| `semver` | `cargo semver-checks` | `compat/semver.md` | `cargo install cargo-semver-checks` |
-| `udeps` | `cargo +nightly udeps` | `deps/udeps.md` | `cargo install cargo-udeps` |
-| `bench` | `cargo bench` | `perf/bench.md` | — |
-| `bloat` | `cargo bloat --release` | `perf/bloat.md` | `cargo install cargo-bloat` |
-| `flamegraph` | `cargo flamegraph` | `perf/flamegraph.md` | `cargo install flamegraph` |
-| `binary` | `cargo build --release` | `compat/binary.md` | — |
+下表列出全部 18 个内置工具，并附有功能简介。
+
+### 代码质量（quality/）
+
+| 工具 | 命令 | 简介 | 报告路径 | 需要安装 |
+|------|------|------|---------|---------|
+| `build` | `cargo build` | 编译项目，验证代码可成功构建，输出产物信息和编译选项分析 | `quality/build.md` | — |
+| `test` | `cargo test` | 运行单元测试和集成测试，统计通过 / 失败 / 忽略用例数及总耗时 | `quality/test.md` | — |
+| `coverage` | `cargo llvm-cov` | 基于 LLVM 插桩统计代码覆盖率，输出文件级行覆盖率和总覆盖率 | `quality/coverage.md` | `cargo install cargo-llvm-cov` |
+| `clippy` | `cargo clippy -- -D warnings` | 运行官方 lint 工具，列出警告/错误详情（规则名 / 位置 / 建议）| `quality/clippy.md` | `rustup component add clippy` |
+| `fmt` | `cargo fmt --check` | 检查代码格式是否符合 `rustfmt` 规范，逐文件列出差异行数 | `quality/fmt.md` | `rustup component add rustfmt` |
+| `doc` | `cargo doc --no-deps` | 构建文档，统计 rustdoc 警告数量 | `quality/doc.md` | — |
+
+### 安全（security/）
+
+| 工具 | 命令 | 简介 | 报告路径 | 需要安装 |
+|------|------|------|---------|---------|
+| `audit` | `cargo audit` | 扫描依赖树中的已知安全漏洞（对照 RustSec Advisory DB），按严重等级汇总 | `security/audit.md` | `cargo install cargo-audit` |
+| `deny` | `cargo deny check` | 检查许可证合规性、依赖白名单/黑名单策略，列出违规项 | `security/deny.md` | `cargo install cargo-deny` |
+| `geiger` | `cargo geiger` | 统计项目及所有依赖中的 `unsafe` 代码（fn / block / impl / trait），定位风险来源 | `security/geiger.md` | `cargo install cargo-geiger` |
+
+### 依赖分析（deps/）
+
+| 工具 | 命令 | 简介 | 报告路径 | 需要安装 |
+|------|------|------|---------|---------|
+| `deps` | `cargo tree` | 展示完整依赖树，统计总依赖数和重复依赖 | `deps/deps.md` | — |
+| `udeps` | `cargo +nightly udeps` | 检测 `Cargo.toml` 中声明但实际未使用的依赖，建议移除 | `deps/udeps.md` | `cargo install cargo-udeps` |
+
+### 性能（perf/）
+
+| 工具 | 命令 | 简介 | 报告路径 | 需要安装 |
+|------|------|------|---------|---------|
+| `metrics` | `cargo geiger --output-format Ratio` | 统计 unsafe 代码占比（按 Ratio 输出），用作代码质量度量指标 | `perf/metrics.md` | `cargo install cargo-geiger` |
+| `bench` | `cargo bench` | 运行基准测试，输出各基准项的平均耗时、标准差和吞吐量 | `perf/bench.md` | — |
+| `bloat` | `cargo bloat --release` | 分析 Release 二进制体积，列出贡献最大的 crate 和函数（Top-N） | `perf/bloat.md` | `cargo install cargo-bloat` |
+| `flamegraph` | `cargo flamegraph` | 生成 CPU 性能火焰图（Linux 需 `perf`，macOS 需 `DTrace`） | `perf/flamegraph.md` | `cargo install flamegraph` |
+
+### 兼容性（compat/）
+
+| 工具 | 命令 | 简介 | 报告路径 | 需要安装 |
+|------|------|------|---------|---------|
+| `msrv` | `cargo msrv` | 验证项目真实最低支持 Rust 版本（MSRV），与 `Cargo.toml` 中声明值比对 | `compat/msrv.md` | `cargo install cargo-msrv` |
+| `semver` | `cargo semver-checks` | 检测公开 API 的破坏性变更（SemVer 违规），辅助版本号决策 | `compat/semver.md` | `cargo install cargo-semver-checks` |
+| `binary` | `cargo build --release` | 构建 Release 二进制，记录产物路径和构建环境信息 | `compat/binary.md` | — |
 
 ---
 
@@ -336,11 +367,11 @@ input_command = "bash scripts/check.sh"
 执行 `rust-checker run` 后生成如下结构：
 
 ```
-.localcheck/
+.rust-checker/
 ├── config.toml
 ├── logs/
 │   └── 20260518-143200.log        # 执行日志（含工具链环境信息）
-├── history/                       # 历史快照（Phase 3）
+├── history/                       # 历史快照
 │   └── 20260518-143200/
 │       └── result.json            # 该次运行的工具结果
 └── reports/
@@ -375,7 +406,7 @@ input_command = "bash scripts/check.sh"
 
 ## CI 集成
 
-`rust-checker` 始终以**零退出码**退出，不干涉 CI/CD 流水线。CI 脚本通过读取 `ci_result.json` 自行决定是否阻断流水线。
+`rust-checker` 的工具执行结果**不影响退出码**，不干涉 CI/CD 流水线——工具失败只体现在报告状态中。配置文件缺失或解析失败等初始化错误仍会以非零退出码退出。CI 脚本通过读取 `ci_result.json` 自行决定是否阻断流水线。
 
 ### GitHub Actions 示例
 
@@ -405,7 +436,7 @@ jobs:
 
       - name: Check for errors
         run: |
-          ERROR_COUNT=$(jq '.summary.error' .localcheck/reports/ci_result.json)
+          ERROR_COUNT=$(jq '.summary.error' .rust-checker/reports/ci_result.json)
           if [ "$ERROR_COUNT" -gt 0 ]; then
             echo "❌ $ERROR_COUNT tool(s) failed"
             exit 1
@@ -416,7 +447,7 @@ jobs:
         if: always()
         with:
           name: quality-reports
-          path: .localcheck/reports/
+          path: .rust-checker/reports/
 ```
 
 ### ci_result.json 格式
@@ -436,8 +467,8 @@ jobs:
     { "tool": "test",     "status": "ok",      "summary": "通过: 42，失败: 0，忽略: 0", "output_path": "quality/test.md" },
     { "tool": "clippy",   "status": "warn",    "summary": "3 个警告",        "output_path": "quality/clippy.md" },
     { "tool": "fmt",      "status": "ok",      "summary": "无问题",          "output_path": "quality/fmt.md" },
-    { "tool": "coverage", "status": "ok",      "summary": "覆盖率: 87.5%",  "output_path": "quality/coverage.md" },
-    { "tool": "doc",      "status": "skipped", "summary": "缺少依赖: cargo", "output_path": "quality/doc.md" }
+    { "tool": "doc",      "status": "ok",      "summary": "构建成功",        "output_path": "quality/doc.md" },
+    { "tool": "coverage", "status": "skipped", "summary": "缺少依赖: cargo-llvm-cov", "output_path": "quality/coverage.md" }
   ]
 }
 ```
@@ -454,7 +485,7 @@ jobs:
 使用示例配置：
 
 ```bash
-cp examples/standard.toml .localcheck/config.toml
+cp examples/standard.toml .rust-checker/config.toml
 rust-checker run
 ```
 

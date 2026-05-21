@@ -23,7 +23,7 @@ debounce_ms = 500
 tools = ["clippy", "fmt", "test"]
 
 # ──────────────────────────────────────────────────────────
-# 代码质量 → .localcheck/reports/quality/
+# 代码质量 → .rust-checker/reports/quality/
 # ──────────────────────────────────────────────────────────
 
 [tools.build]
@@ -59,7 +59,7 @@ active = true
 input_command = "cargo doc --no-deps"
 
 # ──────────────────────────────────────────────────────────
-# 安全 → .localcheck/reports/security/
+# 安全 → .rust-checker/reports/security/
 # ──────────────────────────────────────────────────────────
 
 [tools.audit]
@@ -78,7 +78,7 @@ active = true
 input_command = "cargo geiger"
 
 # ──────────────────────────────────────────────────────────
-# 代码指标 → .localcheck/reports/perf/
+# 代码指标 → .rust-checker/reports/perf/
 # ──────────────────────────────────────────────────────────
 
 [tools.metrics]
@@ -87,7 +87,7 @@ active = true
 input_command = "cargo geiger --output-format Ratio"
 
 # ──────────────────────────────────────────────────────────
-# 依赖分析 → .localcheck/reports/deps/
+# 依赖分析 → .rust-checker/reports/deps/
 # ──────────────────────────────────────────────────────────
 
 [tools.deps]
@@ -96,7 +96,7 @@ active = true
 input_command = "cargo tree"
 
 # ──────────────────────────────────────────────────────────
-# 兼容性 → .localcheck/reports/compat/
+# 兼容性 → .rust-checker/reports/compat/
 # ──────────────────────────────────────────────────────────
 
 [tools.msrv]
@@ -110,12 +110,12 @@ active = true
 input_command = "cargo semver-checks"
 
 [tools.binary]
-desc = "Release 二进制信息与 SHA-256"
+desc = "Release 二进制信息"
 active = true
 input_command = "cargo build --release"
 
 # ──────────────────────────────────────────────────────────
-# 性能 → .localcheck/reports/perf/
+# 性能 → .rust-checker/reports/perf/
 # ──────────────────────────────────────────────────────────
 
 [tools.bench]
@@ -135,7 +135,7 @@ active = true
 input_command = "cargo flamegraph"
 
 # ──────────────────────────────────────────────────────────
-# 依赖 (nightly) → .localcheck/reports/deps/
+# 依赖 (nightly) → .rust-checker/reports/deps/
 # ──────────────────────────────────────────────────────────
 
 [tools.udeps]

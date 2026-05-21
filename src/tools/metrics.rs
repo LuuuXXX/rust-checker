@@ -3,9 +3,6 @@ use crate::report::{ToolReport, ToolStatus};
 pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolReport {
     let combined = format!("{}\n{}", stdout, stderr);
 
-    let line_count = combined.lines().count();
-    let file_count = combined.lines().filter(|l| l.contains(".rs")).count();
-
     let status = if exit_code != 0 {
         ToolStatus::Error
     } else {
@@ -15,7 +12,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let summary = if exit_code != 0 {
         "指标收集失败".to_string()
     } else {
-        format!("收集到 {} 行输出，涉及 {} 个文件", line_count, file_count)
+        "unsafe 代码安全性指标已收集".to_string()
     };
 
     let markdown_content = format!(
@@ -48,7 +45,7 @@ mod tests {
             "cargo geiger --output-format Ratio",
         );
         assert_eq!(r.status, ToolStatus::Ok);
-        assert!(r.summary.contains("文件"));
+        assert!(r.summary.contains("收集"));
     }
 
     #[test]

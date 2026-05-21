@@ -3,10 +3,21 @@ use crate::report::{ToolReport, ToolStatus};
 pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolReport {
     let combined = format!("{}\n{}", stdout, stderr);
 
-    let warning_count = combined.lines().filter(|l| l.contains("warning:")).count();
+    let warning_count = combined
+        .lines()
+        .filter(|l| {
+            (l.starts_with("warning:") || l.contains("warning["))
+                && !l.contains("warning emitted")
+                && !l.contains("warnings emitted")
+        })
+        .count();
     let error_count = combined
         .lines()
-        .filter(|l| l.contains("error:") && !l.contains("aborting due to"))
+        .filter(|l| {
+            (l.contains("error[") || l.starts_with("error:"))
+                && !l.contains("aborting due to")
+                && !l.contains("could not compile")
+        })
         .count();
 
     let status = if error_count > 0 || exit_code != 0 {
@@ -66,9 +77,108 @@ mod tests {
     }
 
     #[test]
+    fn test_clippy_warnings_excludes_emitted_summary_line() {
+        // "N warnings emitted" is a rustc/clippy trailing summary line and must not
+        // be counted as an additional warning itself.
+        let stderr =
+            "warning: unused variable `x`\nwarning: dead_code\nwarning: 2 warnings emitted";
+        let r = parse("", stderr, 0, "cargo clippy");
+        assert_eq!(r.status, ToolStatus::Warn);
+        assert!(
+            r.summary.contains("2"),
+            "expected 2 warnings (not 3) in: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("3"),
+            "summary must not report 3 warnings: {}",
+            r.summary
+        );
+    }
+
+    #[test]
     fn test_clippy_errors() {
         let stderr = "error: expected identifier\nerror: aborting due to 1 previous error";
         let r = parse("", stderr, 1, "cargo clippy");
         assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "error count must appear in summary: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_clippy_error_bracket_format() {
+        // rustc emits "error[E0382]: use of moved value" — must be counted as an error.
+        let stderr = "error[E0382]: use of moved value\nerror: aborting due to 1 previous error";
+        let r = parse("", stderr, 1, "cargo clippy");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "bracket-form error must appear in summary: {}",
+            r.summary
+        );
+        assert_ne!(
+            r.summary, "无问题",
+            "summary must not say '无问题' when errors exist"
+        );
+    }
+
+    #[test]
+    fn test_clippy_errors_excludes_could_not_compile_line() {
+        // "error: could not compile `foo`" is a rustc trailing summary line, not a diagnostic.
+        let stderr = "error: unused import\nerror: could not compile `foo` due to 1 previous error";
+        let r = parse("", stderr, 1, "cargo clippy");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "expected 1 error (not 2) in: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("2"),
+            "summary must not report 2 errors: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_clippy_error_mid_line_not_counted() {
+        // Source code context lines shown by clippy may contain "error:" mid-line
+        // (e.g. a comment or string literal).  Only lines that START with "error:"
+        // or "error[" should count as diagnostics.
+        let stderr = "error[E0308]: type mismatch\n  5 |  // returns error: if not found\nerror: aborting due to 1 previous error";
+        let r = parse("", stderr, 1, "cargo clippy");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "context line with mid-line 'error:' must not inflate count: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("2"),
+            "count must be 1, not 2: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_clippy_warning_mid_line_not_counted() {
+        // Source code context lines shown by clippy may contain "warning:" mid-line.
+        // Only lines that START with "warning:" (or "warning[") should be counted.
+        let stderr = "warning: unused variable `x`\n  5 |  // triggers warning: if slow\nwarning: 1 warning emitted";
+        let r = parse("", stderr, 0, "cargo clippy");
+        assert_eq!(r.status, ToolStatus::Warn);
+        assert!(
+            r.summary.contains("1"),
+            "context line with mid-line 'warning:' must not inflate count: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("2"),
+            "warning count must be 1, not 2: {}",
+            r.summary
+        );
     }
 }

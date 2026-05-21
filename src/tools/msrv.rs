@@ -8,19 +8,17 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     for line in combined.lines() {
         let lower = line.to_lowercase();
         if lower.contains("msrv") || lower.contains("minimum supported rust version") {
-            // Try to extract version number (e.g. 1.65.0)
+            // Try to extract version number (e.g. 1.65.0 or `1.65.0`)
             for part in line.split_whitespace() {
-                if part
+                let trimmed = part.trim_matches(|c: char| !c.is_alphanumeric() && c != '.');
+                if trimmed
                     .chars()
                     .next()
                     .map(|c| c.is_ascii_digit())
                     .unwrap_or(false)
-                    && part.contains('.')
+                    && trimmed.contains('.')
                 {
-                    msrv_version = Some(
-                        part.trim_matches(|c: char| !c.is_alphanumeric() && c != '.')
-                            .to_string(),
-                    );
+                    msrv_version = Some(trimmed.to_string());
                     break;
                 }
             }
@@ -66,6 +64,19 @@ mod tests {
         let r = parse(stdout, "", 0, "cargo msrv");
         assert_eq!(r.status, ToolStatus::Ok);
         assert!(r.summary.contains("1.65.0"));
+    }
+
+    #[test]
+    fn test_msrv_found_backtick_wrapped() {
+        // cargo msrv ≥0.15 wraps the version in backticks: "MSRV is `1.65.0`"
+        let stdout = "MSRV is `1.65.0`";
+        let r = parse(stdout, "", 0, "cargo msrv");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains("1.65.0"),
+            "backtick-wrapped version must be extracted: {}",
+            r.summary
+        );
     }
 
     #[test]
