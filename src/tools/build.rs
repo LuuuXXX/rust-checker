@@ -127,7 +127,8 @@ mod tests {
     fn test_build_warning_mid_line_not_counted() {
         // Source code context lines shown by rustc may contain "warning:" mid-line.
         // Only lines that START with "warning:" (or "warning[") should be counted.
-        let stderr = "warning: unused variable `x`\n  3 |  // emits warning: when debug\nFinished dev";
+        let stderr =
+            "warning: unused variable `x`\n  3 |  // emits warning: when debug\nFinished dev";
         let r = parse("", stderr, 0, "cargo build");
         assert_eq!(r.status, ToolStatus::Ok);
         assert!(
