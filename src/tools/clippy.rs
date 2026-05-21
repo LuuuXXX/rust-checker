@@ -14,7 +14,7 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
     let error_count = combined
         .lines()
         .filter(|l| {
-            (l.contains("error[") || l.contains("error:"))
+            (l.contains("error[") || l.starts_with("error:"))
                 && !l.contains("aborting due to")
                 && !l.contains("could not compile")
         })
@@ -139,6 +139,26 @@ mod tests {
         assert!(
             !r.summary.contains("2"),
             "summary must not report 2 errors: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_clippy_error_mid_line_not_counted() {
+        // Source code context lines shown by clippy may contain "error:" mid-line
+        // (e.g. a comment or string literal).  Only lines that START with "error:"
+        // or "error[" should count as diagnostics.
+        let stderr = "error[E0308]: type mismatch\n  5 |  // returns error: if not found\nerror: aborting due to 1 previous error";
+        let r = parse("", stderr, 1, "cargo clippy");
+        assert_eq!(r.status, ToolStatus::Error);
+        assert!(
+            r.summary.contains("1"),
+            "context line with mid-line 'error:' must not inflate count: {}",
+            r.summary
+        );
+        assert!(
+            !r.summary.contains("2"),
+            "count must be 1, not 2: {}",
             r.summary
         );
     }

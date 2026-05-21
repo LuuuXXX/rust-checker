@@ -10,8 +10,10 @@ pub fn parse(stdout: &str, stderr: &str, exit_code: i32, command: &str) -> ToolR
 
     for line in combined.lines() {
         let lower = line.to_lowercase();
-        // real cargo bloat uses KiB/MiB (kibibyte units); also accept plain KB/MB/B
+        // real cargo bloat uses KiB/MiB (kibibyte units); also accept plain KB/MB/B.
+        // Exclude function rows (they always contain '%'); only the summary line is wanted.
         if lower.contains("file")
+            && !line.contains('%')
             && (lower.contains("kb")
                 || lower.contains("kib")
                 || lower.contains("mb")
@@ -119,6 +121,20 @@ mod tests {
         assert!(
             r.summary.contains("bytes"),
             "space-separated bytes size must appear in summary: {}",
+            r.summary
+        );
+    }
+
+    #[test]
+    fn test_bloat_crate_name_contains_file_not_confused_with_size_line() {
+        // A function row whose crate name contains "file" must NOT be mistaken for
+        // the binary size summary line. Only the summary line (no '%') should set total_size.
+        let stdout = "  5.2%  6.0%  2.0KiB  libfile-utils  open_fn\n File .text size: 512KiB";
+        let r = parse(stdout, "", 0, "cargo bloat");
+        assert_eq!(r.status, ToolStatus::Ok);
+        assert!(
+            r.summary.contains("512KiB"),
+            "total size must come from the summary line, not the function row: {}",
             r.summary
         );
     }
