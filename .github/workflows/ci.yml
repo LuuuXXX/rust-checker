@@ -137,7 +137,7 @@ jobs:
           cat .rust-checker/reports/ci_result.json
           python3 - <<'EOF'
           import json, sys
-          with open(".rust-checker/reports/ci_result.json") as f:
+          with open(".rust-checker/reports/ci_result.json", encoding="utf-8") as f:
               data = json.load(f)
           assert "timestamp" in data, "missing 'timestamp'"
           assert isinstance(data["summary"], dict), "'summary' must be an object"
