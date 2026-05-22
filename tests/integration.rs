@@ -843,3 +843,332 @@ fn test_run_set_cmd_bad_format_errors() {
         "expected failure for malformed --set-cmd"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Output format validation: summary.md deep structure
+// ---------------------------------------------------------------------------
+
+/// summary.md must contain a heading, a markdown table, tool names, and stat counts.
+#[test]
+fn test_run_summary_md_structure() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
+
+    std::fs::write(
+        rust_checker.join("config.toml"),
+        r#"schema_version = "1"
+
+[tools.clippy]
+desc = "clippy"
+active = false
+input_command = "cargo clippy"
+
+[tools.fmt]
+desc = "fmt"
+active = false
+input_command = "cargo fmt --check"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .output()
+        .expect("run command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let content =
+        std::fs::read_to_string(rust_checker.join("reports").join("summary.md")).unwrap();
+
+    // Must have a top-level Markdown heading
+    assert!(content.contains("# "), "summary.md missing heading");
+    // Must have a Markdown table (pipe characters)
+    assert!(content.contains("| "), "summary.md missing table");
+    assert!(content.contains("|--"), "summary.md missing table separator");
+    // Must mention tool names
+    assert!(content.contains("clippy"), "summary.md missing tool 'clippy'");
+    assert!(content.contains("fmt"), "summary.md missing tool 'fmt'");
+    // Statistics section must report two skipped tools
+    assert!(
+        content.contains("跳过: 2"),
+        "summary.md missing expected skip count (got: {content})"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Output format validation: ci_result.json deep field checks
+// ---------------------------------------------------------------------------
+
+/// ci_result.json must contain all summary sub-fields and per-tool fields.
+#[test]
+fn test_run_ci_json_tool_fields_present() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
+
+    std::fs::write(
+        rust_checker.join("config.toml"),
+        r#"schema_version = "1"
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .args(["--ci"])
+        .output()
+        .expect("run command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let json_path = rust_checker.join("reports").join("ci_result.json");
+    let content = std::fs::read_to_string(&json_path).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+    // summary sub-fields
+    let summary = &v["summary"];
+    assert!(summary["total"].is_number(), "summary.total missing");
+    assert!(summary["ok"].is_number(), "summary.ok missing");
+    assert!(summary["warn"].is_number(), "summary.warn missing");
+    assert!(summary["error"].is_number(), "summary.error missing");
+    assert!(summary["skipped"].is_number(), "summary.skipped missing");
+
+    // counts must match: one inactive tool → 1 skipped
+    assert_eq!(summary["total"], 1, "expected total=1");
+    assert_eq!(summary["skipped"], 1, "expected skipped=1");
+    assert_eq!(summary["ok"], 0, "expected ok=0");
+
+    // per-tool entry fields
+    let tools = v["tools"].as_array().unwrap();
+    assert!(!tools.is_empty(), "tools array must not be empty");
+    let tool = &tools[0];
+    assert!(tool["tool"].is_string(), "tool.tool missing");
+    assert!(tool["status"].is_string(), "tool.status missing");
+    assert!(tool["summary"].is_string(), "tool.summary missing");
+    assert!(tool["output_path"].is_string(), "tool.output_path missing");
+
+    // status value must be one of the known strings
+    let status = tool["status"].as_str().unwrap();
+    assert!(
+        ["ok", "warn", "error", "skipped"].contains(&status),
+        "unexpected status value: {status}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Output format validation: --format json triggers ci_result.json (no --ci)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_run_format_json_creates_ci_result() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
+
+    std::fs::write(
+        rust_checker.join("config.toml"),
+        r#"schema_version = "1"
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .args(["--format", "json"])
+        .output()
+        .expect("run command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    // --format json (without --ci) should also produce ci_result.json
+    let json_path = rust_checker.join("reports").join("ci_result.json");
+    assert!(
+        json_path.exists(),
+        "ci_result.json not created with --format json"
+    );
+
+    let content = std::fs::read_to_string(&json_path).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&content).unwrap();
+    assert!(v["timestamp"].is_string(), "timestamp must be string");
+    assert!(v["summary"].is_object(), "summary must be object");
+    assert!(v["tools"].is_array(), "tools must be array");
+}
+
+// ---------------------------------------------------------------------------
+// Output format validation: --format html
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_run_format_html_creates_summary_html() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
+
+    std::fs::write(
+        rust_checker.join("config.toml"),
+        r#"schema_version = "1"
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .args(["--format", "html"])
+        .output()
+        .expect("run command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let summary_html = rust_checker.join("reports").join("summary.html");
+    assert!(summary_html.exists(), "summary.html not found");
+
+    let content = std::fs::read_to_string(&summary_html).unwrap();
+    assert!(
+        content.contains("<!DOCTYPE html>"),
+        "summary.html missing DOCTYPE"
+    );
+    assert!(
+        content.contains("stat-bar"),
+        "summary.html missing stat-bar section"
+    );
+    assert!(
+        content.contains("grid"),
+        "summary.html missing grid layout"
+    );
+    assert!(content.contains("build"), "summary.html missing tool name");
+}
+
+#[test]
+fn test_run_format_html_creates_tool_html_reports() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
+
+    std::fs::write(
+        rust_checker.join("config.toml"),
+        r#"schema_version = "1"
+
+[tools.fmt]
+desc = "fmt"
+active = false
+input_command = "cargo fmt --check"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .args(["--format", "html"])
+        .output()
+        .expect("run command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    // HTML tool report should exist alongside the markdown one
+    let html_report = rust_checker
+        .join("reports")
+        .join("quality")
+        .join("fmt.html");
+    assert!(html_report.exists(), "quality/fmt.html not found");
+
+    let content = std::fs::read_to_string(&html_report).unwrap();
+    assert!(
+        content.contains("<!DOCTYPE html>"),
+        "tool HTML report missing DOCTYPE"
+    );
+    assert!(content.contains("fmt"), "tool HTML report missing tool name");
+    assert!(
+        content.contains("badge"),
+        "tool HTML report missing status badge"
+    );
+}
+
+#[test]
+fn test_run_format_html_summary_counts() {
+    let dir = temp_dir();
+    let rust_checker = dir.path().join(".rust-checker");
+    std::fs::create_dir_all(&rust_checker).unwrap();
+
+    std::fs::write(
+        rust_checker.join("config.toml"),
+        r#"schema_version = "1"
+
+[tools.build]
+desc = "build"
+active = false
+input_command = "cargo build"
+
+[tools.test]
+desc = "test"
+active = false
+input_command = "cargo test"
+"#,
+    )
+    .unwrap();
+
+    let out = Command::new(bin())
+        .args(["run", "--dir"])
+        .arg(dir.path())
+        .args(["--format", "html"])
+        .output()
+        .expect("run command");
+
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let content =
+        std::fs::read_to_string(rust_checker.join("reports").join("summary.html")).unwrap();
+    // The HTML stat bar must contain the skipped count (2 inactive tools → 2 skipped)
+    assert!(content.contains(">2<"), "summary.html missing count '2'");
+    // Must contain status labels
+    assert!(content.contains("通过") || content.contains("ok"), "summary.html missing ok label");
+    assert!(
+        content.contains("跳过") || content.contains("skipped"),
+        "summary.html missing skipped label"
+    );
+}

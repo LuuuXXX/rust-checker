@@ -75,12 +75,17 @@ jobs:
         run: cargo test --verbose
 
   # ──────────────────────────────────────────────────────────────────────────
-  # End-to-end: run rust-checker against itself
+  # End-to-end: run rust-checker against itself on all three platforms
   # ──────────────────────────────────────────────────────────────────────────
   e2e:
-    name: E2E self-check
+    name: E2E self-check (${{ matrix.os }})
     needs: test
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
@@ -102,46 +107,108 @@ jobs:
       - name: Build rust-checker binary
         run: cargo build
 
+      # Resolve the binary path once; subsequent steps reference $RC_BIN.
+      # Git Bash (shell: bash) is available on all three GitHub-hosted runners.
+      - name: Set binary path
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "RC_BIN=./target/debug/rust-checker.exe" >> "$GITHUB_ENV"
+          else
+            echo "RC_BIN=./target/debug/rust-checker" >> "$GITHUB_ENV"
+          fi
+
       - name: rust-checker init --preset quality
-        run: ./target/debug/rust-checker init --preset quality
+        shell: bash
+        run: $RC_BIN init --preset quality
 
       - name: rust-checker run (fmt + clippy only) in CI mode
-        run: >
-          ./target/debug/rust-checker run
-          --only fmt,clippy
-          --ci
+        shell: bash
+        run: $RC_BIN run --only fmt,clippy --ci
 
-      - name: Verify ci_result.json was created
+      # ── JSON output: existence + deep structure ───────────────────────────
+      - name: Verify ci_result.json structure and content
+        shell: bash
         run: |
           test -f .rust-checker/reports/ci_result.json
           echo "=== ci_result.json ==="
           cat .rust-checker/reports/ci_result.json
+          python3 - <<'EOF'
+          import json, sys
+          with open(".rust-checker/reports/ci_result.json") as f:
+              data = json.load(f)
+          assert "timestamp" in data, "missing 'timestamp'"
+          assert isinstance(data["summary"], dict), "'summary' must be an object"
+          for k in ("total", "ok", "warn", "error", "skipped"):
+              assert k in data["summary"], f"summary.{k} missing"
+          assert isinstance(data["tools"], list), "'tools' must be an array"
+          for t in data["tools"]:
+              for field in ("tool", "status", "summary", "output_path"):
+                  assert field in t, f"tool entry missing field '{field}'"
+              assert t["status"] in ("ok", "warn", "error", "skipped"), \
+                  f"unexpected status value: {t['status']}"
+          print("✅ ci_result.json structure OK")
+          EOF
 
-      - name: Verify summary.md was created
+      # ── Markdown output: existence + structure ────────────────────────────
+      - name: Verify summary.md structure and content
+        shell: bash
         run: |
           test -f .rust-checker/reports/summary.md
           echo "=== summary.md ==="
           cat .rust-checker/reports/summary.md
+          python3 - <<'EOF'
+          with open(".rust-checker/reports/summary.md", encoding="utf-8") as f:
+              content = f.read()
+          assert "# " in content, "summary.md missing heading"
+          assert "| " in content, "summary.md missing markdown table"
+          assert "|--" in content, "summary.md missing table separator"
+          print("✅ summary.md structure OK")
+          EOF
 
-      - name: Verify history entry was created (Phase 3)
+      # ── HTML output: run with --format html and validate ──────────────────
+      - name: rust-checker run --format html
+        shell: bash
+        run: $RC_BIN run --only fmt,clippy --format html
+
+      - name: Verify summary.html structure and content
+        shell: bash
+        run: |
+          test -f .rust-checker/reports/summary.html
+          echo "=== summary.html (first 40 lines) ==="
+          head -40 .rust-checker/reports/summary.html || true
+          python3 - <<'EOF'
+          with open(".rust-checker/reports/summary.html", encoding="utf-8") as f:
+              content = f.read()
+          assert "<!DOCTYPE html>" in content, "summary.html missing DOCTYPE"
+          assert "stat-bar" in content, "summary.html missing stat-bar section"
+          assert "grid" in content, "summary.html missing grid layout"
+          print("✅ summary.html structure OK")
+          EOF
+
+      - name: Verify history entry was created
+        shell: bash
         run: |
           ls .rust-checker/history/
           find .rust-checker/history -name "result.json" | head -1 | xargs cat
 
       - name: rust-checker diff --last 1
-        run: ./target/debug/rust-checker diff --last 1
+        shell: bash
+        run: $RC_BIN diff --last 1
 
       - name: rust-checker upgrade (already v2, should be no-op)
-        run: ./target/debug/rust-checker upgrade
+        shell: bash
+        run: $RC_BIN upgrade
 
       - name: rust-checker plugin list
-        run: ./target/debug/rust-checker plugin list
+        shell: bash
+        run: $RC_BIN plugin list
 
       - name: Upload reports as artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: rust-checker-reports
+          name: rust-checker-reports-${{ matrix.os }}
           path: .rust-checker/reports/
           retention-days: 7
 
