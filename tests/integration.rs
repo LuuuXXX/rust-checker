@@ -884,16 +884,21 @@ input_command = "cargo fmt --check"
         String::from_utf8_lossy(&out.stderr)
     );
 
-    let content =
-        std::fs::read_to_string(rust_checker.join("reports").join("summary.md")).unwrap();
+    let content = std::fs::read_to_string(rust_checker.join("reports").join("summary.md")).unwrap();
 
     // Must have a top-level Markdown heading
     assert!(content.contains("# "), "summary.md missing heading");
     // Must have a Markdown table (pipe characters)
     assert!(content.contains("| "), "summary.md missing table");
-    assert!(content.contains("|--"), "summary.md missing table separator");
+    assert!(
+        content.contains("|--"),
+        "summary.md missing table separator"
+    );
     // Must mention tool names
-    assert!(content.contains("clippy"), "summary.md missing tool 'clippy'");
+    assert!(
+        content.contains("clippy"),
+        "summary.md missing tool 'clippy'"
+    );
     assert!(content.contains("fmt"), "summary.md missing tool 'fmt'");
     // Statistics section must report two skipped tools
     assert!(
@@ -1068,10 +1073,7 @@ input_command = "cargo build"
         content.contains("stat-bar"),
         "summary.html missing stat-bar section"
     );
-    assert!(
-        content.contains("grid"),
-        "summary.html missing grid layout"
-    );
+    assert!(content.contains("grid"), "summary.html missing grid layout");
     assert!(content.contains("build"), "summary.html missing tool name");
 }
 
@@ -1118,7 +1120,10 @@ input_command = "cargo fmt --check"
         content.contains("<!DOCTYPE html>"),
         "tool HTML report missing DOCTYPE"
     );
-    assert!(content.contains("fmt"), "tool HTML report missing tool name");
+    assert!(
+        content.contains("fmt"),
+        "tool HTML report missing tool name"
+    );
     assert!(
         content.contains("badge"),
         "tool HTML report missing status badge"
@@ -1166,6 +1171,12 @@ input_command = "cargo test"
     // The HTML stat bar must contain the skipped count (2 inactive tools → 2 skipped)
     assert!(content.contains(">2<"), "summary.html missing count '2'");
     // Must contain status labels (HTML always uses Chinese labels from ToolStatus::label())
-    assert!(content.contains("通过"), "summary.html missing ok label '通过'");
-    assert!(content.contains("跳过"), "summary.html missing skipped label '跳过'");
+    assert!(
+        content.contains("通过"),
+        "summary.html missing ok label '通过'"
+    );
+    assert!(
+        content.contains("跳过"),
+        "summary.html missing skipped label '跳过'"
+    );
 }
