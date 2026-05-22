@@ -1,0 +1,36 @@
+{
+  "summary": {
+    "error": 0,
+    "ok": 4,
+    "skipped": 0,
+    "total": 4,
+    "warn": 0
+  },
+  "timestamp": "2026-05-22T01:32:10",
+  "tools": [
+    {
+      "output_path": "quality/build.md",
+      "status": "ok",
+      "summary": "构建成功",
+      "tool": "build"
+    },
+    {
+      "output_path": "quality/test.md",
+      "status": "ok",
+      "summary": "通过: 2，失败: 0，忽略: 0",
+      "tool": "test"
+    },
+    {
+      "output_path": "quality/clippy.md",
+      "status": "ok",
+      "summary": "无问题",
+      "tool": "clippy"
+    },
+    {
+      "output_path": "quality/fmt.md",
+      "status": "ok",
+      "summary": "代码格式正确",
+      "tool": "fmt"
+    }
+  ]
+}

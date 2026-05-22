@@ -1,0 +1,25 @@
+{
+  "timestamp": "20260522-013210",
+  "tools": [
+    {
+      "tool_name": "build",
+      "status": "ok",
+      "summary": "构建成功"
+    },
+    {
+      "tool_name": "test",
+      "status": "ok",
+      "summary": "通过: 2，失败: 0，忽略: 0"
+    },
+    {
+      "tool_name": "clippy",
+      "status": "ok",
+      "summary": "无问题"
+    },
+    {
+      "tool_name": "fmt",
+      "status": "ok",
+      "summary": "代码格式正确"
+    }
+  ]
+}
