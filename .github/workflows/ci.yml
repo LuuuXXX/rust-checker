@@ -144,3 +144,140 @@ jobs:
           name: rust-checker-reports
           path: .rust-checker/reports/
           retention-days: 7
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Real-crate gates: run rust-checker against actual crates.io projects
+  # fetched at pinned tags, proving the full pipeline works on real-world code.
+  # ──────────────────────────────────────────────────────────────────────────
+  real-crate-gates:
+    name: Real Crate Gate (${{ matrix.crate.name }})
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        crate:
+          # rand_core – foundational RNG trait crate, lives inside the rand monorepo
+          - name: rand_core
+            repo: rust-random/rand
+            ref: rand_core-0.6.4
+            subdir: rand_core
+
+          # log – simple standalone logging facade crate
+          - name: log
+            repo: rust-lang/log
+            ref: "0.4.22"
+            subdir: "."
+
+          # serde – the most-downloaded Rust crate; serialization framework
+          - name: serde
+            repo: serde-rs/serde
+            ref: v1.0.217
+            subdir: serde
+
+          # bitflags – type-safe bitfield macro, widely used in systems code
+          - name: bitflags
+            repo: bitflags/bitflags
+            ref: "2.6.0"
+            subdir: "."
+
+          # semver – semantic versioning parsing and comparison
+          - name: semver
+            repo: dtolnay/semver
+            ref: "1.0.23"
+            subdir: "."
+
+          # once_cell – lazy / one-time initialization primitives
+          - name: once_cell
+            repo: matklad/once_cell
+            ref: v1.20.2
+            subdir: "."
+
+    steps:
+      # ── 1. Checkout rust-checker itself (binary source) ──────────────────
+      - name: Checkout rust-checker
+        uses: actions/checkout@v4
+        with:
+          path: rust-checker
+
+      # ── 2. Rust toolchain ─────────────────────────────────────────────────
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      # ── 3. Cache ──────────────────────────────────────────────────────────
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust-checker/target
+          key: ${{ runner.os }}-cargo-real-gates-${{ matrix.crate.name }}-${{ hashFiles('rust-checker/**/Cargo.lock') }}
+
+      # ── 4. Build rust-checker binary ──────────────────────────────────────
+      - name: Build rust-checker binary
+        run: cargo build
+        working-directory: rust-checker
+
+      # ── 5. Checkout the target crate at a pinned tag ──────────────────────
+      - name: Checkout ${{ matrix.crate.name }} @ ${{ matrix.crate.ref }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.crate.repo }}
+          ref: ${{ matrix.crate.ref }}
+          path: crate-src
+
+      # ── 5b. Resolve crate directory (handle subdir "." to avoid path issues) ──
+      - name: Set CRATE_DIR
+        run: |
+          SUBDIR="${{ matrix.crate.subdir }}"
+          if [ "$SUBDIR" = "." ]; then
+            echo "CRATE_DIR=crate-src" >> $GITHUB_ENV
+          else
+            echo "CRATE_DIR=crate-src/$SUBDIR" >> $GITHUB_ENV
+          fi
+
+      # ── 6. Initialise rust-checker config (minimal preset) ───────────────
+      - name: rust-checker init --preset minimal
+        run: >
+          rust-checker/target/debug/rust-checker init
+          --preset minimal
+          --dir ${{ env.CRATE_DIR }}
+
+      # ── 7. Run checks in CI mode ──────────────────────────────────────────
+      #   Run the full minimal preset (build, test, clippy, fmt).
+      #   - clippy: omit -D warnings; external codebases may carry version-specific lints.
+      #   - test: use `|| true` so failing tests in external crates don't block CI;
+      #     the gate validates that rust-checker orchestrates all tools, not crate quality.
+      - name: rust-checker run --ci (${{ matrix.crate.name }})
+        run: >
+          rust-checker/target/debug/rust-checker run
+          --ci
+          --set-cmd "clippy=cargo clippy"
+          --set-cmd "test=cargo test || true"
+          --dir ${{ env.CRATE_DIR }}
+
+      # ── 8. Quality gate ───────────────────────────────────────────────────
+      - name: Quality gate — no tool errors allowed
+        run: |
+          JSON="${{ env.CRATE_DIR }}/.rust-checker/reports/ci_result.json"
+          echo "=== ci_result.json ==="
+          cat "$JSON"
+          FAILED=$(jq '[.tools[] | select(.status == "error")] | length' "$JSON")
+          if [ "$FAILED" -gt 0 ]; then
+            echo "❌ Real-crate gate FAILED: $FAILED tool(s) returned error"
+            jq -r '[.tools[] | select(.status == "error")] | .[] | "  ✗ \(.tool): \(.summary)"' "$JSON"
+            exit 1
+          fi
+          echo "✅ Real-crate gate PASSED: all tools ok/warn/skipped"
+
+      # ── 9. Upload reports ─────────────────────────────────────────────────
+      - name: Upload gate reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-gate-reports-${{ matrix.crate.name }}
+          path: ${{ env.CRATE_DIR }}/.rust-checker/reports/
+          retention-days: 7

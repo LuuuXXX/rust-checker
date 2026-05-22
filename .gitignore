@@ -2,4 +2,7 @@
 .rust-checker/logs/
 .rust-checker/reports/
 .rust-checker/history/
+**/.rust-checker/logs/
+**/.rust-checker/reports/
+**/.rust-checker/history/
 Cargo.lock
