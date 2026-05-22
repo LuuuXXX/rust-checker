@@ -143,11 +143,22 @@ impl Runner {
             if cmd_str.trim().is_empty() {
                 bail!("tool '{tool_name}' has an empty input_command — check your config");
             }
-            let parts: Vec<&str> = cmd_str.split_whitespace().collect();
-            let (program, args) = parts.split_first().expect("cmd non-empty verified above");
 
-            let mut cmd = std::process::Command::new(program);
-            cmd.args(args)
+            // Run the command through the system shell so that operators like
+            // `||`, `&&`, and pipes are interpreted correctly.
+            #[cfg(windows)]
+            let mut cmd = {
+                let mut c = std::process::Command::new("cmd");
+                c.args(["/C", cmd_str]);
+                c
+            };
+            #[cfg(not(windows))]
+            let mut cmd = {
+                let mut c = std::process::Command::new("sh");
+                c.args(["-c", cmd_str]);
+                c
+            };
+            cmd
                 // Run tools in the effective project directory (workspace member path
                 // when --crate is used, otherwise the project root).
                 .current_dir(&self.working_dir);
