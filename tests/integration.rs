@@ -1165,10 +1165,7 @@ input_command = "cargo test"
         std::fs::read_to_string(rust_checker.join("reports").join("summary.html")).unwrap();
     // The HTML stat bar must contain the skipped count (2 inactive tools → 2 skipped)
     assert!(content.contains(">2<"), "summary.html missing count '2'");
-    // Must contain status labels
-    assert!(content.contains("通过") || content.contains("ok"), "summary.html missing ok label");
-    assert!(
-        content.contains("跳过") || content.contains("skipped"),
-        "summary.html missing skipped label"
-    );
+    // Must contain status labels (HTML always uses Chinese labels from ToolStatus::label())
+    assert!(content.contains("通过"), "summary.html missing ok label '通过'");
+    assert!(content.contains("跳过"), "summary.html missing skipped label '跳过'");
 }

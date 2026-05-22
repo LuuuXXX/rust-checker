@@ -80,6 +80,8 @@ jobs:
   e2e:
     name: E2E self-check (${{ matrix.os }})
     needs: test
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
