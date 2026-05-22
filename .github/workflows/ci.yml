@@ -247,15 +247,16 @@ jobs:
           --dir ${{ env.CRATE_DIR }}
 
       # ── 7. Run checks in CI mode ──────────────────────────────────────────
-      #   Only run fmt and clippy: we validate integration, not the crate's own
-      #   build/test hygiene. Override clippy to omit -D warnings since external
-      #   codebases may carry version-specific lints.
+      #   Run the full minimal preset (build, test, clippy, fmt).
+      #   - clippy: omit -D warnings; external codebases may carry version-specific lints.
+      #   - test: use `|| true` so failing tests in external crates don't block CI;
+      #     the gate validates that rust-checker orchestrates all tools, not crate quality.
       - name: rust-checker run --ci (${{ matrix.crate.name }})
         run: >
           rust-checker/target/debug/rust-checker run
           --ci
-          --only fmt,clippy
           --set-cmd "clippy=cargo clippy"
+          --set-cmd "test=cargo test || true"
           --dir ${{ env.CRATE_DIR }}
 
       # ── 8. Quality gate ───────────────────────────────────────────────────
