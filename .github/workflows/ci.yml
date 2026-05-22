@@ -228,6 +228,30 @@ jobs:
             ref: "0.4.22"
             subdir: "."
 
+          # serde – the most-downloaded Rust crate; serialization framework
+          - name: serde
+            repo: serde-rs/serde
+            ref: v1.0.217
+            subdir: serde
+
+          # bitflags – type-safe bitfield macro, widely used in systems code
+          - name: bitflags
+            repo: bitflags/bitflags
+            ref: "2.6.0"
+            subdir: "."
+
+          # semver – semantic versioning parsing and comparison
+          - name: semver
+            repo: dtolnay/semver
+            ref: "1.0.23"
+            subdir: "."
+
+          # once_cell – lazy / one-time initialization primitives
+          - name: once_cell
+            repo: matklad/once_cell
+            ref: v1.20.2
+            subdir: "."
+
     steps:
       # ── 1. Checkout rust-checker itself (binary source) ──────────────────
       - name: Checkout rust-checker
