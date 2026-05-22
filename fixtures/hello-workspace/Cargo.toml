@@ -1,3 +1,0 @@
-[workspace]
-members = ["crates/adder", "crates/greeter"]
-resolver = "2"

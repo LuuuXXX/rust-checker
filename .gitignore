@@ -6,4 +6,3 @@
 **/.rust-checker/reports/
 **/.rust-checker/history/
 Cargo.lock
-fixtures/**/target/
