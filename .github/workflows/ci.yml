@@ -271,8 +271,13 @@ jobs:
       # ── 5. --offline mode with various presets ───────────────────────────
       - name: Test --offline --check --preset full
         shell: bash
-        # Exit code 2 = tools missing but that is expected in offline check
-        run: bash scripts/install-tools.sh --check --offline --preset full || true
+        # Exit code 2 = tools missing (expected in a clean CI runner).
+        # Exit code 0 = all tools already installed (also acceptable).
+        # Any other exit code indicates an unexpected script failure.
+        run: |
+          bash scripts/install-tools.sh --check --offline --preset full
+          rc=$?
+          [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit "$rc"
 
       - name: Test --offline --dry-run --preset full --yes
         shell: bash
@@ -293,8 +298,7 @@ jobs:
       # ── 8. Unknown option must exit non-zero ─────────────────────────────
       - name: Unknown option exits non-zero
         shell: bash
-        run: |
-          bash scripts/install-tools.sh --unknown-flag 2>&1 && exit 1 || true
+        run: "! bash scripts/install-tools.sh --unknown-flag"
 
   # ──────────────────────────────────────────────────────────────────────────
   # Real-crate gates: run rust-checker against actual crates.io projects
