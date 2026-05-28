@@ -216,6 +216,87 @@ jobs:
           retention-days: 7
 
   # ──────────────────────────────────────────────────────────────────────────
+  # Validate install-tools.sh across all three platforms
+  # ──────────────────────────────────────────────────────────────────────────
+  install-script:
+    name: Install Script (${{ matrix.os }})
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      # ── 1. Validate script syntax ────────────────────────────────────────
+      - name: Validate script syntax (bash -n)
+        shell: bash
+        run: bash -n scripts/install-tools.sh
+
+      # ── 2. --help must exit 0 ────────────────────────────────────────────
+      - name: Test --help
+        shell: bash
+        run: bash scripts/install-tools.sh --help
+
+      # ── 3. --check with minimal preset (all tools already available) ─────
+      - name: Test --check --preset minimal
+        shell: bash
+        run: bash scripts/install-tools.sh --check --preset minimal
+
+      # ── 4. --dry-run for all presets (no network access needed) ──────────
+      - name: Test --dry-run --preset minimal --yes
+        shell: bash
+        run: bash scripts/install-tools.sh --preset minimal --dry-run --yes
+
+      - name: Test --dry-run --preset quality --yes
+        shell: bash
+        run: bash scripts/install-tools.sh --preset quality --dry-run --yes
+
+      - name: Test --dry-run --preset security --yes
+        shell: bash
+        run: bash scripts/install-tools.sh --preset security --dry-run --yes
+
+      - name: Test --dry-run --preset full --yes
+        shell: bash
+        run: bash scripts/install-tools.sh --preset full --dry-run --yes
+
+      # ── 5. --offline mode with various presets ───────────────────────────
+      - name: Test --offline --check --preset full
+        shell: bash
+        # Exit code 2 = tools missing but that is expected in offline check
+        run: bash scripts/install-tools.sh --check --offline --preset full || true
+
+      - name: Test --offline --dry-run --preset full --yes
+        shell: bash
+        run: bash scripts/install-tools.sh --preset full --dry-run --offline --yes
+
+      # ── 6. Actual install of minimal preset (rustup components only) ─────
+      #   clippy and rustfmt are installed via rustup component add, which is
+      #   fast and does not require separate network access beyond the toolchain.
+      - name: Install --preset minimal --yes (actual)
+        shell: bash
+        run: bash scripts/install-tools.sh --preset minimal --yes --no-system
+
+      # ── 7. Verify all minimal-preset tools are now available ─────────────
+      - name: Verify --check --preset minimal exits 0
+        shell: bash
+        run: bash scripts/install-tools.sh --check --preset minimal
+
+      # ── 8. Unknown option must exit non-zero ─────────────────────────────
+      - name: Unknown option exits non-zero
+        shell: bash
+        run: |
+          bash scripts/install-tools.sh --unknown-flag 2>&1 && exit 1 || true
+
+  # ──────────────────────────────────────────────────────────────────────────
   # Real-crate gates: run rust-checker against actual crates.io projects
   # fetched at pinned tags, proving the full pipeline works on real-world code.
   # ──────────────────────────────────────────────────────────────────────────
