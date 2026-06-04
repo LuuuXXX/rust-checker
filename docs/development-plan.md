@@ -36,7 +36,7 @@
   - `minimal`：build + test + clippy + fmt
   - `quality`：build + test + coverage + clippy + fmt + doc
   - `security`：build + test + audit + deny + geiger
-  - `full`：所有 18 个内置工具
+  - `full`：所有 22 个内置工具
 
 ### 2.3 `rust-checker run` 命令（核心执行引擎）
 
@@ -177,7 +177,7 @@
 
 ### 3.7 测试、示例与文档（本轮补充）
 
-- [x] 单元测试覆盖：所有 18 个工具解析器（happy path + edge case）
+- [x] 单元测试覆盖：所有 22 个工具解析器（happy path + edge case）
 - [x] 新增单元测试：config 加载、report 写入、topo sort、dependency_check、runner
 - [x] 集成测试：`init` / `run` 端到端测试（使用编译后二进制 + tempdir）
 - [x] 示例配置：`examples/minimal.toml`、`examples/standard.toml`、`examples/full.toml`
@@ -324,7 +324,7 @@
 |------|---------|------|
 | `.localcheck` 重命名为 `.rust-checker` | 全项目文本替换（src、tests、docs、examples、CI） | ✅ |
 | 通过命令为特定工具定制化命令 | `run --set-cmd TOOL=CMD`（可重复），覆盖 config 中 `input_command` | ✅ |
-| README 补充内置工具简介 | README §"内置工具列表"按分类列出 18 个工具，含功能简介 | ✅ |
+| README 补充内置工具简介 | README §"内置工具列表"按分类列出 22 个工具，含功能简介 | ✅ |
 | HTML 汇总报告 Dashboard 样式 | `write_summary_html` 改为 card 布局，含统计栏（通过/警告/失败/跳过） | ✅ |
 | 平台相关安装提示 | `dependency_check.rs` 新增 `SystemInstallHint`（apt/brew 提示） | ✅ |
 | 插件开发指南 | `docs/plugin-guide.md`（plugin.toml 规范 + 贡献流程） | ✅ |

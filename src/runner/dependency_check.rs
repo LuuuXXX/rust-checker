@@ -35,7 +35,7 @@ impl SystemInstallHint {
 
 pub fn get_tool_dep(tool_name: &str) -> Option<ToolDep> {
     match tool_name {
-        "build" | "test" | "bench" | "doc" | "deps" | "binary" => Some(ToolDep {
+        "build" | "test" | "bench" | "doc" | "deps" | "binary" | "asan" => Some(ToolDep {
             binary: "cargo",
             cargo_install: None,
             system_install: None,
@@ -103,6 +103,24 @@ pub fn get_tool_dep(tool_name: &str) -> Option<ToolDep> {
                 linux: Some("sudo apt-get install linux-perf  # Linux: 需要 perf 工具"),
                 macos: Some("# macOS: 需要 DTrace（系统自带），可能需要关闭 SIP"),
                 windows: Some("# Windows: 暂不支持 cargo-flamegraph"),
+            }),
+        }),
+        "valgrind_memcheck" => Some(ToolDep {
+            binary: "cargo-valgrind",
+            cargo_install: Some("cargo-valgrind"),
+            system_install: Some(SystemInstallHint {
+                linux: Some("sudo apt-get install valgrind  # cargo-valgrind 需要系统 valgrind"),
+                macos: Some("brew install valgrind  # 可用性取决于当前 macOS 版本"),
+                windows: Some("# Windows: valgrind/cargo-valgrind 通常不可用"),
+            }),
+        }),
+        "valgrind_helgrind" | "valgrind_drd" => Some(ToolDep {
+            binary: "valgrind",
+            cargo_install: None,
+            system_install: Some(SystemInstallHint {
+                linux: Some("sudo apt-get install valgrind"),
+                macos: Some("brew install valgrind  # 可用性取决于当前 macOS 版本"),
+                windows: Some("# Windows: valgrind 通常不可用"),
             }),
         }),
         _ => None,
@@ -185,7 +203,7 @@ mod tests {
     #[test]
     fn test_get_tool_dep_known_tools() {
         // Tools that always use cargo (no special binary needed)
-        for tool in &["build", "test", "bench", "doc", "deps", "binary"] {
+        for tool in &["build", "test", "bench", "doc", "deps", "binary", "asan"] {
             let dep = get_tool_dep(tool).unwrap_or_else(|| panic!("expected dep for {tool}"));
             assert_eq!(dep.binary, "cargo");
             assert!(dep.cargo_install.is_none());
@@ -225,6 +243,24 @@ mod tests {
         let dep = get_tool_dep("flamegraph").unwrap();
         assert_eq!(dep.binary, "cargo-flamegraph");
         assert_eq!(dep.cargo_install, Some("flamegraph"));
+    }
+
+    #[test]
+    fn test_valgrind_memcheck_uses_cargo_valgrind() {
+        let dep = get_tool_dep("valgrind_memcheck").unwrap();
+        assert_eq!(dep.binary, "cargo-valgrind");
+        assert_eq!(dep.cargo_install, Some("cargo-valgrind"));
+        assert!(dep.system_install.is_some());
+    }
+
+    #[test]
+    fn test_valgrind_thread_tools_use_system_valgrind() {
+        for tool in &["valgrind_helgrind", "valgrind_drd"] {
+            let dep = get_tool_dep(tool).unwrap_or_else(|| panic!("expected dep for {tool}"));
+            assert_eq!(dep.binary, "valgrind");
+            assert!(dep.cargo_install.is_none());
+            assert!(dep.system_install.is_some());
+        }
     }
 
     #[test]

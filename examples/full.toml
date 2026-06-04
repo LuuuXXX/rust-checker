@@ -1,6 +1,6 @@
 # rust-checker 完整配置示例 (full preset)
 #
-# 启用全部 18 个内置工具，覆盖代码质量、安全、依赖、性能、兼容性。
+# 启用全部 22 个内置工具，覆盖代码质量、安全、依赖、性能、兼容性。
 # 适合：完整质量门禁，发布前检查，开源项目全量审计。
 #
 # 生成命令：rust-checker init --preset full
@@ -133,6 +133,30 @@ input_command = "cargo bloat --release"
 desc = "性能火焰图（需要: cargo install flamegraph；Linux 需要 perf）"
 active = true
 input_command = "cargo flamegraph"
+
+[tools.valgrind_memcheck]
+desc = "Valgrind Memcheck 内存检查（系统需安装 valgrind）"
+active = true
+input_command = "mkdir -p .rust-checker/reports/valgrind && VALGRINDFLAGS=\"--tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --track-fds=yes --error-exitcode=1 --xml=yes --xml-file=.rust-checker/reports/valgrind/memcheck-%p.xml --log-file=.rust-checker/reports/valgrind/memcheck-%p.log --num-callers=20 --show-error-list=yes --suppressions=rust.supp --gen-suppressions=all\" cargo valgrind run -- --version"
+depends_on = ["build"]
+
+[tools.valgrind_helgrind]
+desc = "Valgrind Helgrind 线程竞争检查（系统需安装 valgrind）"
+active = true
+input_command = "mkdir -p .rust-checker/reports/valgrind && bin=$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; data=json.load(sys.stdin); print(next(t[\"name\"] for p in data[\"packages\"] for t in p[\"targets\"] if \"bin\" in t[\"kind\"]))') && cargo build --bin \"$bin\" && valgrind --tool=helgrind --track-fds=yes --error-exitcode=1 --xml=yes --xml-file=.rust-checker/reports/valgrind/helgrind-%p.xml --log-file=.rust-checker/reports/valgrind/helgrind-%p.log --num-callers=20 --show-error-list=yes --suppressions=rust.supp --gen-suppressions=all \"target/debug/$bin\" --version"
+depends_on = ["build"]
+
+[tools.valgrind_drd]
+desc = "Valgrind DRD 线程检查（系统需安装 valgrind）"
+active = true
+input_command = "mkdir -p .rust-checker/reports/valgrind && bin=$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; data=json.load(sys.stdin); print(next(t[\"name\"] for p in data[\"packages\"] for t in p[\"targets\"] if \"bin\" in t[\"kind\"]))') && cargo build --bin \"$bin\" && valgrind --tool=drd --track-fds=yes --error-exitcode=1 --xml=yes --xml-file=.rust-checker/reports/valgrind/drd-%p.xml --log-file=.rust-checker/reports/valgrind/drd-%p.log --num-callers=20 --show-error-list=yes --suppressions=rust.supp --gen-suppressions=all \"target/debug/$bin\" --version"
+depends_on = ["build"]
+
+[tools.asan]
+desc = "AddressSanitizer 构建检查"
+active = true
+input_command = "mkdir -p .rust-checker/reports && ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1:symbolize=1:allocator_may_return_null=1:detect_stack_use_after_return=1:strict_string_checks=1:log_path=.rust-checker/reports/asan\" RUSTFLAGS=-Zsanitizer=address cargo +nightly test -Zbuild-std --target x86_64-unknown-linux-gnu"
+depends_on = ["build"]
 
 # ──────────────────────────────────────────────────────────
 # 依赖 (nightly) → .rust-checker/reports/deps/

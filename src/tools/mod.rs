@@ -1,3 +1,4 @@
+pub mod asan;
 pub mod audit;
 pub mod bench;
 pub mod binary;
@@ -16,6 +17,7 @@ pub mod msrv;
 pub mod semver;
 pub mod test;
 pub mod udeps;
+pub mod valgrind;
 
 use crate::report::ToolReport;
 
@@ -35,6 +37,7 @@ pub fn parse_tool_output(
         "fmt" => fmt::parse(stdout, stderr, exit_code, command),
         "doc" => doc::parse(stdout, stderr, exit_code, command),
         "audit" => audit::parse(stdout, stderr, exit_code, command),
+        "asan" => asan::parse(stdout, stderr, exit_code, command),
         "deny" => deny::parse(stdout, stderr, exit_code, command),
         "geiger" => geiger::parse(stdout, stderr, exit_code, command),
         "metrics" => metrics::parse(stdout, stderr, exit_code, command),
@@ -46,6 +49,9 @@ pub fn parse_tool_output(
         "bloat" => bloat::parse(stdout, stderr, exit_code, command),
         "flamegraph" => flamegraph::parse(stdout, stderr, exit_code, command),
         "binary" => binary::parse(stdout, stderr, exit_code, command),
+        "valgrind_memcheck" | "valgrind_helgrind" | "valgrind_drd" => {
+            valgrind::parse(tool_name, stdout, stderr, exit_code, command)
+        }
         _ => generic_parse(tool_name, stdout, stderr, exit_code, command),
     }
 }

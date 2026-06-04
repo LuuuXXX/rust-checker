@@ -119,9 +119,44 @@ fn test_init_full_preset_has_all_tools() {
         std::fs::read_to_string(dir.path().join(".rust-checker").join("config.toml")).unwrap();
     // Spot-check several tools from all categories
     for tool in &[
-        "build", "test", "clippy", "audit", "geiger", "msrv", "bloat", "bench",
+        "build",
+        "test",
+        "clippy",
+        "audit",
+        "geiger",
+        "msrv",
+        "bloat",
+        "bench",
+        "valgrind_memcheck",
+        "valgrind_helgrind",
+        "valgrind_drd",
+        "asan",
     ] {
         assert!(content.contains(tool), "full preset missing tool: {tool}");
+    }
+    for fragment in &[
+        "VALGRINDFLAGS=",
+        "--tool=memcheck",
+        "--leak-check=full",
+        "--xml-file=.rust-checker/reports/valgrind/memcheck-%p.xml",
+        "--log-file=.rust-checker/reports/valgrind/memcheck-%p.log",
+        "--tool=helgrind",
+        "--xml-file=.rust-checker/reports/valgrind/helgrind-%p.xml",
+        "--log-file=.rust-checker/reports/valgrind/helgrind-%p.log",
+        "--tool=drd",
+        "--xml-file=.rust-checker/reports/valgrind/drd-%p.xml",
+        "--log-file=.rust-checker/reports/valgrind/drd-%p.log",
+        "cargo valgrind run -- --version",
+        "ASAN_OPTIONS=",
+        "detect_leaks=1",
+        "log_path=.rust-checker/reports/asan",
+        "RUSTFLAGS=-Zsanitizer=address",
+        "cargo +nightly test -Zbuild-std --target x86_64-unknown-linux-gnu",
+    ] {
+        assert!(
+            content.contains(fragment),
+            "full preset missing command fragment: {fragment}"
+        );
     }
 }
 
