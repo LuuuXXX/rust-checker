@@ -116,6 +116,30 @@ const ALL_TOOLS: &[ToolPreset] = &[
         deps: None,
     },
     ToolPreset {
+        name: "valgrind_memcheck",
+        desc: "Valgrind 内存检查",
+        command: "mkdir -p .rust-checker/reports/valgrind && VALGRINDFLAGS=\"--tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --track-fds=yes --error-exitcode=1 --xml=yes --xml-file=.rust-checker/reports/valgrind/memcheck-%p.xml --log-file=.rust-checker/reports/valgrind/memcheck-%p.log --num-callers=20 --show-error-list=yes --suppressions=rust.supp --gen-suppressions=all\" cargo valgrind run -- --version",
+        deps: Some(&["build"]),
+    },
+    ToolPreset {
+        name: "valgrind_helgrind",
+        desc: "Valgrind Helgrind 线程竞争检查",
+        command: "mkdir -p .rust-checker/reports/valgrind && bin=$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; data=json.load(sys.stdin); print(next(t[\"name\"] for p in data[\"packages\"] for t in p[\"targets\"] if \"bin\" in t[\"kind\"]))') && cargo build --bin \"$bin\" && valgrind --tool=helgrind --track-fds=yes --error-exitcode=1 --xml=yes --xml-file=.rust-checker/reports/valgrind/helgrind-%p.xml --log-file=.rust-checker/reports/valgrind/helgrind-%p.log --num-callers=20 --show-error-list=yes --suppressions=rust.supp --gen-suppressions=all \"target/debug/$bin\" --version",
+        deps: Some(&["build"]),
+    },
+    ToolPreset {
+        name: "valgrind_drd",
+        desc: "Valgrind DRD 线程检查",
+        command: "mkdir -p .rust-checker/reports/valgrind && bin=$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; data=json.load(sys.stdin); print(next(t[\"name\"] for p in data[\"packages\"] for t in p[\"targets\"] if \"bin\" in t[\"kind\"]))') && cargo build --bin \"$bin\" && valgrind --tool=drd --track-fds=yes --error-exitcode=1 --xml=yes --xml-file=.rust-checker/reports/valgrind/drd-%p.xml --log-file=.rust-checker/reports/valgrind/drd-%p.log --num-callers=20 --show-error-list=yes --suppressions=rust.supp --gen-suppressions=all \"target/debug/$bin\" --version",
+        deps: Some(&["build"]),
+    },
+    ToolPreset {
+        name: "asan",
+        desc: "AddressSanitizer 构建检查",
+        command: "mkdir -p .rust-checker/reports && ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1:symbolize=1:allocator_may_return_null=1:detect_stack_use_after_return=1:strict_string_checks=1:log_path=.rust-checker/reports/asan\" RUSTFLAGS=-Zsanitizer=address cargo +nightly test -Zbuild-std --target x86_64-unknown-linux-gnu",
+        deps: Some(&["build"]),
+    },
+    ToolPreset {
         name: "binary",
         desc: "二进制信息",
         command: "cargo build --release",
@@ -180,6 +204,10 @@ fn select_tools_by_preset(preset: &str) -> IndexMap<String, ToolConfig> {
             "bench",
             "bloat",
             "flamegraph",
+            "valgrind_memcheck",
+            "valgrind_helgrind",
+            "valgrind_drd",
+            "asan",
             "binary",
         ],
         _ => &["build", "test", "clippy", "fmt"],
@@ -291,6 +319,84 @@ mod tests {
         );
         // build has no deps
         assert!(tools["build"].depends_on.is_none());
+    }
+
+    #[test]
+    fn test_full_preset_uses_full_valgrind_and_asan_commands() {
+        let tools = select_tools_by_preset("full");
+
+        let valgrind_command = &tools["valgrind_memcheck"].input_command;
+        for fragment in &[
+            "mkdir -p .rust-checker/reports/valgrind",
+            "VALGRINDFLAGS=",
+            "--tool=memcheck",
+            "--leak-check=full",
+            "--show-leak-kinds=all",
+            "--track-origins=yes",
+            "--track-fds=yes",
+            "--xml-file=.rust-checker/reports/valgrind/memcheck-%p.xml",
+            "--log-file=.rust-checker/reports/valgrind/memcheck-%p.log",
+            "cargo valgrind run -- --version",
+        ] {
+            assert!(
+                valgrind_command.contains(fragment),
+                "valgrind_memcheck command missing fragment: {fragment}"
+            );
+        }
+
+        for (tool, tool_arg, xml_file, log_file) in [
+            (
+                "valgrind_helgrind",
+                "--tool=helgrind",
+                "helgrind-%p.xml",
+                "helgrind-%p.log",
+            ),
+            ("valgrind_drd", "--tool=drd", "drd-%p.xml", "drd-%p.log"),
+        ] {
+            let command = &tools[tool].input_command;
+            for fragment in &[
+                "mkdir -p .rust-checker/reports/valgrind",
+                "bin=$(cargo metadata --no-deps --format-version 1",
+                "cargo build --bin \"$bin\"",
+                tool_arg,
+                "--track-fds=yes",
+                "--error-exitcode=1",
+                "--xml=yes",
+                "--num-callers=20",
+                "--show-error-list=yes",
+                "--suppressions=rust.supp",
+                "--gen-suppressions=all",
+                "\"target/debug/$bin\" --version",
+            ] {
+                assert!(
+                    command.contains(fragment),
+                    "{tool} command missing fragment: {fragment}"
+                );
+            }
+            assert!(command.contains(&format!(
+                "--xml-file=.rust-checker/reports/valgrind/{xml_file}"
+            )));
+            assert!(command.contains(&format!(
+                "--log-file=.rust-checker/reports/valgrind/{log_file}"
+            )));
+            assert!(!command.contains("--leak-check=full"));
+            assert!(!command.contains("--show-leak-kinds=all"));
+            assert!(!command.contains("--track-origins=yes"));
+        }
+
+        let asan_command = &tools["asan"].input_command;
+        for fragment in &[
+            "ASAN_OPTIONS=",
+            "detect_leaks=1",
+            "log_path=.rust-checker/reports/asan",
+            "RUSTFLAGS=-Zsanitizer=address",
+            "cargo +nightly test -Zbuild-std --target x86_64-unknown-linux-gnu",
+        ] {
+            assert!(
+                asan_command.contains(fragment),
+                "asan command missing fragment: {fragment}"
+            );
+        }
     }
 
     #[test]

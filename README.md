@@ -75,7 +75,7 @@ Options:
                            minimal   - build, test, clippy, fmt
                            quality   - build, test, coverage, clippy, fmt, doc
                            security  - build, test, audit, deny, geiger
-                           full      - 全部 18 个内置工具
+                           full      - 全部 22 个内置工具
       --force            强制重新生成（覆盖已有配置）
   -h, --help             显示帮助信息
 ```
@@ -86,7 +86,7 @@ Options:
 # 生成最小配置（4个工具）
 rust-checker init --preset minimal
 
-# 生成完整配置（18个工具），覆盖现有配置
+# 生成完整配置（22个工具），覆盖现有配置
 rust-checker init --preset full --force
 
 # 为其他目录初始化
@@ -315,7 +315,7 @@ input_command = "bash scripts/check.sh"
 
 ## 内置工具列表
 
-下表列出全部 18 个内置工具，并附有功能简介。
+下表列出全部 22 个内置工具，并附有功能简介。
 
 ### 代码质量（quality/）
 
@@ -335,6 +335,10 @@ input_command = "bash scripts/check.sh"
 | `audit` | `cargo audit` | 扫描依赖树中的已知安全漏洞（对照 RustSec Advisory DB），按严重等级汇总 | `security/audit.md` | `cargo install cargo-audit` |
 | `deny` | `cargo deny check` | 检查许可证合规性、依赖白名单/黑名单策略，列出违规项 | `security/deny.md` | `cargo install cargo-deny` |
 | `geiger` | `cargo geiger` | 统计项目及所有依赖中的 `unsafe` 代码（fn / block / impl / trait），定位风险来源 | `security/geiger.md` | `cargo install cargo-geiger` |
+| `valgrind_memcheck` | `cargo valgrind run -- --version` | 运行 Valgrind Memcheck 内存检查，汇总错误数量与常见泄漏摘要 | `valgrind/memcheck.md` | `cargo install cargo-valgrind` |
+| `valgrind_helgrind` | `valgrind --tool=helgrind target/debug/<bin>` | 运行 Valgrind Helgrind 线程竞争检查 | `valgrind/helgrind.md` | `valgrind` |
+| `valgrind_drd` | `valgrind --tool=drd target/debug/<bin>` | 运行 Valgrind DRD 线程检查 | `valgrind/drd.md` | `valgrind` |
+| `asan` | `cargo +nightly test -Zbuild-std` | 使用 AddressSanitizer 构建并测试项目，捕获 ASan 构建或运行时输出 | `asan.md` | — |
 
 ### 依赖分析（deps/）
 
@@ -396,6 +400,11 @@ input_command = "bash scripts/check.sh"
     │   ├── bench.md
     │   ├── bloat.md
     │   └── flamegraph.md
+    ├── valgrind/
+    │   ├── memcheck.md
+    │   ├── helgrind.md
+    │   └── drd.md
+    ├── asan.md
     └── compat/
         ├── binary.md
         ├── msrv.md
@@ -479,7 +488,7 @@ jobs:
 
 - [`examples/minimal.toml`](examples/minimal.toml) — 4 个工具（build、test、clippy、fmt）
 - [`examples/standard.toml`](examples/standard.toml) — 6 个工具（代码质量全套）
-- [`examples/full.toml`](examples/full.toml) — 18 个工具（完整检查，含 watch 配置）
+- [`examples/full.toml`](examples/full.toml) — 22 个工具（完整检查，含 watch 配置）
 - [`examples/workspace.toml`](examples/workspace.toml) — Workspace / Monorepo 配置示例
 
 使用示例配置：

@@ -72,6 +72,10 @@ pub fn builtin_output_path(tool_name: &str) -> Option<&'static str> {
         "bloat" => Some("perf/bloat.md"),
         "flamegraph" => Some("perf/flamegraph.md"),
         "binary" => Some("compat/binary.md"),
+        "valgrind_memcheck" => Some("valgrind/memcheck.md"),
+        "valgrind_helgrind" => Some("valgrind/helgrind.md"),
+        "valgrind_drd" => Some("valgrind/drd.md"),
+        "asan" => Some("asan.md"),
         _ => None,
     }
 }
@@ -134,6 +138,10 @@ mod tests {
             ("bloat", "perf/bloat.md"),
             ("flamegraph", "perf/flamegraph.md"),
             ("binary", "compat/binary.md"),
+            ("valgrind_memcheck", "valgrind/memcheck.md"),
+            ("valgrind_helgrind", "valgrind/helgrind.md"),
+            ("valgrind_drd", "valgrind/drd.md"),
+            ("asan", "asan.md"),
         ];
         for (name, expected) in &known {
             assert_eq!(
