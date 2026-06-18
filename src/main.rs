@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-use rust_checker::cli;
-use rust_checker::report::ReportFormat;
+use rust_checker_cli::cli;
+use rust_checker_cli::report::ReportFormat;
 
 #[derive(Parser)]
 #[command(
