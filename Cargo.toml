@@ -2,6 +2,8 @@
 name = "rust-checker"
 version = "0.1.0"
 edition = "2021"
+description = "rust-checker 是一个面向 Rust 项目的本地质量检查工具。它通过统一的配置文件调度多种 Cargo 工具，生成结构化报告，帮助开发者在发布前快速掌握构建质量、测试覆盖率、依赖安全等关键指标。"
+license = "MIT OR Apache-2.0"
 
 [[bin]]
 name = "rust-checker"
